@@ -3,6 +3,12 @@ use message::*;
 
 use arrayvec::ArrayVec;
 
+/// The error returned by [`MessageBuilder`](struct.MessageBuilder.html).
+pub enum MessageBuilderError {
+    /// The maximum number of data has been reached for this message.
+    MaximumDataReached,
+}
+
 struct Packet {
     pid: u8,
     cmd: u8,
@@ -75,9 +81,16 @@ pub struct MessageBuilderMem {
 
 /// This is a specialized version of the [`MessageBuilder`](struct.MessageBuilder.html) which contains an ID and a position
 /// request.
-pub struct MessageBuilderPosition {
+pub struct MessageBuilderPositionSJOG {
     pid: u8,
-    pos: PositionRequest,
+    pos: SJogRequest,
+}
+
+/// This is a specialized version of the [`MessageBuilder`](struct.MessageBuilder.html) which contains an ID and a position
+/// request.
+pub struct MessageBuilderPositionIJOG {
+    pid: u8,
+    pos: IJogRequest,
 }
 
 /// This is a specialized version of the [`MessageBuilder`](struct.MessageBuilder.html) which contains an ID and a special
@@ -198,6 +211,53 @@ impl MessageBuilderCmd {
             kind: SpecialRequest::Stat,
         }
     }
+
+    /// Create a new message of type **SJog**.
+    /// There is a maximum of 10 servomotors that can be controlled per sjog message.
+    ///
+    /// # Invalid Values
+    ///
+    /// The maximum `playtime` value is `0xFE`.
+    /// The maximum `id` value is `0xFE`.
+    pub fn s_jog(
+        self,
+        playtime: u8,
+        mode: JogMode,
+        color: JogColor,
+        id: u8,
+    ) -> MessageBuilderPositionSJOG {
+        let mut result = MessageBuilderPositionSJOG {
+            pid: self.pid,
+            pos: SJogRequest {
+                data: ArrayVec::new(),
+                playtime: playtime,
+            },
+        };
+        result.pos.data.push(SJogData::new(mode, color, id));
+        result
+    }
+
+    /// Create a new message of type **IJOG**
+    /// There is a maximum of 10 servomotors that can be controlled per ijog message.
+    ///
+    /// # Invalid Values
+    ///
+    /// The maximum `playtime` value is `0xFE`.
+    /// The maximum `id` value is `0xFE`.
+    pub fn i_jog(
+        self,
+        playtime: u8,
+        mode: JogMode,
+        color: JogColor,
+        id: u8,
+    ) -> MessageBuilderPositionIJOG {
+        let mut result = MessageBuilderPositionIJOG {
+            pid: self.pid,
+            pos: ArrayVec::new(),
+        };
+        result.pos.push(IJogData::new(mode, color, playtime, id));
+        result
+    }
 }
 
 impl MessageBuilderMem {
@@ -282,12 +342,124 @@ impl MessageBuilderSpecial {
     }
 }
 
+impl MessageBuilderPositionSJOG {
+    /// Append a new **SJOG** command to this message.
+    ///
+    /// # Errors
+    ///
+    /// Return [MessageBuilderError::MaximumDataReached](enum.MessageBuilderError.html) if there
+    /// is already 10 sjog command in this message.
+    ///
+    /// # Invalid Values
+    ///
+    /// The maximum `id` value is `0xFE`.
+    /// The maximum `playtime` value is `0xFE`.
+    pub fn s_jog(
+        &mut self,
+        mode: JogMode,
+        color: JogColor,
+        id: u8,
+    ) -> Result<(), MessageBuilderError> {
+        if self.pos.data.is_full() {
+            Err(MessageBuilderError::MaximumDataReached)
+        } else {
+            self.pos.data.push(SJogData::new(mode, color, id));
+            Ok(())
+        }
+    }
+
+    /// Build the final message to be sent to the servomotor through a serial connection.
+    pub fn build(self) -> HerkulexMessage {
+        let mut packet = Packet::default();
+        packet.pid = self.pid;
+        packet.cmd = 6;
+        packet.push_data(self.pos.playtime);
+        for data in self.pos.data {
+            let d = data.mode.associated_data();
+            let lsb = (d) as u8;
+            let msb = (d >> 8) as u8;
+            packet.push_data(lsb);
+            packet.push_data(msb);
+
+            let mut set: u8 = 0;
+            match data.mode {
+                JogMode::Normal { .. } => set |= 0b00000000,
+                JogMode::Continuous { .. } => set |= 0b00000010,
+            }
+            match data.color {
+                JogColor::Blue => set |= 0b00001000,
+                JogColor::Green => set |= 0b00000100,
+                JogColor::Red => set |= 0b00010000,
+            }
+            packet.push_data(set);
+            packet.push_data(data.id);
+        }
+        packet.build()
+    }
+}
+
+impl MessageBuilderPositionIJOG {
+    /// Append a new **SJOG** command to this message.
+    ///
+    /// # Errors
+    ///
+    /// Return [MessageBuilderError::MaximumDataReached](enum.MessageBuilderError.html) if there
+    /// is already 10 sjog command in this message.
+    ///
+    /// # Invalid Values
+    ///
+    /// The maximum `id` value is `0xFE`.
+    pub fn s_jog(
+        &mut self,
+        mode: JogMode,
+        color: JogColor,
+        playtime: u8,
+        id: u8,
+    ) -> Result<(), MessageBuilderError> {
+        if self.pos.is_full() {
+            Err(MessageBuilderError::MaximumDataReached)
+        } else {
+            self.pos.push(IJogData::new(mode, color, playtime, id));
+            Ok(())
+        }
+    }
+
+    /// Build the final message to be sent to the servomotor through a serial connection.
+    pub fn build(self) -> HerkulexMessage {
+        let mut packet = Packet::default();
+        packet.pid = self.pid;
+        packet.cmd = 5;
+        for data in self.pos {
+            let d = data.mode.associated_data();
+            let lsb = (d) as u8;
+            let msb = (d >> 8) as u8;
+            packet.push_data(lsb);
+            packet.push_data(msb);
+
+            let mut set: u8 = 0;
+            match data.mode {
+                JogMode::Normal { .. } => set |= 0b00000000,
+                JogMode::Continuous { .. } => set |= 0b00000010,
+            }
+            match data.color {
+                JogColor::Blue => set |= 0b00001000,
+                JogColor::Green => set |= 0b00000100,
+                JogColor::Red => set |= 0b00010000,
+            }
+            packet.push_data(set);
+            packet.push_data(data.id);
+            packet.push_data(data.playtime);
+        }
+        packet.build()
+    }
+}
+
 #[cfg(test)]
 mod test {
 
     use addr::*;
     use builder::*;
-    use message::Rollback;
+    use message::*;
 
     #[test]
     fn reboot_message() {
@@ -364,6 +536,50 @@ mod test {
             message.as_slice(),
             &[0xFF, 0xFF, 0x09, 0xFD, 0x02, 0xEC, 0x12, 0x1E, 0x04]
         );
+    }
+
+    #[test]
+    fn sjog_message() {
+        let message = MessageBuilder::new()
+            .id(0xFD)
+            .s_jog(60, JogMode::Normal { position: 512 }, JogColor::Green, 0xFD)
+            .build();
+
+        assert_eq!(
+            message.as_slice(),
+            &[0xFF, 0xFF, 0x0C, 0xFD, 0x06, 0x30, 0xCE, 0x3C, 0x00, 0x02, 0x04, 0xFD,]
+        );
+
+        let message = MessageBuilder::new()
+            .id(0xFD)
+            .s_jog(60, JogMode::Continuous { speed: 320 }, JogColor::Blue, 0xFD)
+            .build();
+
+        assert_eq!(
+            message.as_slice(),
+            &[0xFF, 0xFF, 0x0C, 0xFD, 0x06, 124, 130, 0x3C, 0x40, 0x01, 0x0A, 0xFD,]
+        )
+    }
+
+    #[test]
+    fn ijog_message() {
+        let message = MessageBuilder::new()
+            .id(0xFD)
+            .i_jog(60, JogMode::Normal { position: 512 }, JogColor::Green, 0xFD)
+            .build();
+        assert_eq!(
+            message.as_slice(),
+            &[0xFF, 0xFF, 0x0C, 0xFD, 0x05, 0x32, 0xCC, 0x00, 0x02, 0x04, 0xFD, 0x3C,]
+        );
+
+        let message = MessageBuilder::new()
+            .id(0xFD)
+            .i_jog(60, JogMode::Continuous { speed: 320 }, JogColor::Blue, 0xFD)
+            .build();
+        assert_eq!(
+            message.as_slice(),
+            &[0xFF, 0xFF, 0x0C, 0xFD, 0x05, 0x7E, 0x80, 0x40, 0x01, 0x0A, 0xFD, 0x3C,]
+        )
     }
 
 }

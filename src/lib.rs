@@ -36,6 +36,9 @@ mod addr;
 mod builder;
 mod message;
 
-pub use builder::{MessageBuilder, MessageBuilderCmd, MessageBuilderPosition, MessageBuilderSpecial};
+pub use builder::{MessageBuilder, MessageBuilderCmd, MessageBuilderError,
+                  MessageBuilderPositionIJOG, MessageBuilderPositionSJOG, MessageBuilderSpecial};
 
 pub use addr::*;
+
+pub use message::{JogColor, JogMode};
