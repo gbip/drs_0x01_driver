@@ -29,7 +29,7 @@ impl Default for Packet {
 
 impl Packet {
     fn build(self) -> HerkulexMessage {
-        let mut result = ArrayVec::<[_; 256]>::new();
+        let mut result = HerkulexMessage::new();
         let size: u8 = self.data_size as u8 + 7;
         let mut checksum1: u8 = size ^ self.pid ^ self.cmd;
         result.push(0xFF);
@@ -55,7 +55,7 @@ impl Packet {
 }
 
 /// This is the type of all the message provided by this crate.
-type HerkulexMessage = ArrayVec<[u8; 256]>;
+pub type HerkulexMessage = ArrayVec<[u8; 128]>;
 
 /// This struct allows you to build message to directly speak to the herkulex servomotors.
 pub struct MessageBuilder {}
@@ -162,7 +162,7 @@ impl MessageBuilderCmd {
 
     /// Create a message of type **WRITE_EEP** (write to the permanent memory, require a reboot to
     /// take effect).
-    pub fn write_eep<S: Into<Option<u8>>>(self, eep_addr: WritableEEPAddr) -> MessageBuilderMem {
+    pub fn write_eep(self, eep_addr: WritableEEPAddr) -> MessageBuilderMem {
         MessageBuilderMem {
             pid: self.pid,
             addr: RegisterRequest::EEPWrite(eep_addr),
@@ -219,6 +219,7 @@ impl MessageBuilderCmd {
     ///
     /// The maximum `playtime` value is `0xFE`.
     /// The maximum `id` value is `0xFE`.
+    /// The maximum `position` value is 1024.
     pub fn s_jog(
         self,
         playtime: u8,
@@ -244,6 +245,7 @@ impl MessageBuilderCmd {
     ///
     /// The maximum `playtime` value is `0xFE`.
     /// The maximum `id` value is `0xFE`.
+    /// The maximum `position` value is 1024.
     pub fn i_jog(
         self,
         playtime: u8,
@@ -457,9 +459,8 @@ impl MessageBuilderPositionIJOG {
 #[cfg(test)]
 mod test {
 
-    use addr::*;
+    use addr::ReadableEEPAddr;
     use builder::*;
-    use message::*;
 
     #[test]
     fn reboot_message() {

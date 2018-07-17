@@ -41,6 +41,7 @@ pub enum JogMode {
     /// Make sure that the position is in range for your servomotor.
     Normal {
         /// The calibrated position.
+        /// The value must be in the 0..1023 range
         position: u16,
     },
     /// Control the servomotor by speed.
@@ -48,6 +49,7 @@ pub enum JogMode {
     /// The 14th bit represent the sign, if it set the servomotor will rotate the other way.
     Continuous {
         /// The desired PWM value.
+        /// The value must be in the 0..1023 range
         speed: u16,
     },
 }

@@ -1,3 +1,5 @@
+//! All the servomotor addresses mapped to some enums.
+
 /// This enum represent all the RAM (volatile) memory adresses which can be read. I comes from the
 /// page 24 of the datasheet.
 #[derive(Clone, Copy, Debug)]
