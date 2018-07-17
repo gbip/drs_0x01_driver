@@ -7,7 +7,7 @@ use addr::*;
 use core::cmp::min;
 
 /// This struct allows you to quickly build messages for a servomotor.
-#[derive(Copy, Clone,Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Servo {
     id: u8,
 }
@@ -27,6 +27,16 @@ impl Servo {
     /// * 254 is the broadcast ID.
     pub fn new(id: u8) -> Servo {
         Servo { id }
+    }
+
+    /// Change the servo ID.
+    pub fn set_id(&mut self, id: u8) {
+        self.id = id;
+    }
+
+    /// Return the servo ID.
+    pub fn id(&self) -> u8 {
+        self.id
     }
 
     /// Create a reboot message requesting the servo to reboot.
