@@ -1,6 +1,6 @@
 [package]
 name = "drs-0x01"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Paul Florence <perso@florencepaul.com>"]
 description = "Easily communicate with Dongbu Robot servomotors Herkulex DRS 0101 and DRS 0201"
 license = "MIT OR Apache-2.0"

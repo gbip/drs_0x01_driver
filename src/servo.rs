@@ -7,7 +7,7 @@ use addr::*;
 use core::cmp::min;
 
 /// This struct allows you to quickly build messages for a servomotor.
-#[derive(Debug)]
+#[derive(Copy, Clone,Debug)]
 pub struct Servo {
     id: u8,
 }

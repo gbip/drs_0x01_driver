@@ -1,4 +1,4 @@
- # [Documentation](https://docs.rs/drs-0x01/0.1.3/drs_0x01/)
+ # [Documentation](https://docs.rs/drs-0x01/0.1.4/drs_0x01/)
  
  This crate provides basic functionnality to communicate with Herkulex DRS (both 0101 and 0201)
  servomotors.
