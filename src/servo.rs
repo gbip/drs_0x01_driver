@@ -104,4 +104,25 @@ impl Servo {
             .read_eep(addr, addr.bytes())
             .build()
     }
+
+    /// Request the servo to enable torque.
+    pub fn enable_torque(&self) -> HerkulexMessage {
+        MessageBuilder::new_with_id(self.id)
+            .write_ram(WritableRamAddr::TorqueControl(0x60))
+            .build()
+    }
+
+    /// Request the servo to disable torque.
+    pub fn disable_torque(&self) -> HerkulexMessage {
+        MessageBuilder::new_with_id(self.id)
+            .write_ram(WritableRamAddr::TorqueControl(0))
+            .build()
+    }
+
+    /// Clear the error register of the servo.
+    pub fn clear_errors(&self) -> HerkulexMessage {
+        MessageBuilder::new_with_id(self.id)
+            .write_ram(WritableRamAddr::StatusError(0))
+            .build()
+    }
 }
