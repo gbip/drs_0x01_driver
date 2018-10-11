@@ -45,13 +45,15 @@ extern crate arrayvec;
 pub mod addr;
 mod builder;
 mod message;
+mod reader;
 mod servo;
 
 /// Advanced data types for experimented users knowing the datasheet.
 pub mod advanced {
-    pub use builder::{HerkulexMessage, MessageBuilder, MessageBuilderCmd, MessageBuilderError,
-                      MessageBuilderPositionIJOG, MessageBuilderPositionSJOG,
-                      MessageBuilderSpecial};
+    pub use builder::{
+        HerkulexMessage, MessageBuilder, MessageBuilderCmd, MessageBuilderError,
+        MessageBuilderPositionIJOG, MessageBuilderPositionSJOG, MessageBuilderSpecial,
+    };
 }
 
 /// Easy to use functions for a quickstart.
