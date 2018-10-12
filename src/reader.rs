@@ -8,14 +8,14 @@ pub const TRAME_READER_INTERNAL_BUFFER_SIZE: usize = 64;
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ACKcmd {
     EEPWrite,
-    EEPRead,
+    EEPRead, // contient data (doc p42)
     RamWrite,
-    RamRead,
+    RamRead, // contient data (doc p45)
     IJog,
     SJog,
-    Stat,
-    Rollback,
-    Reboot,
+    Stat,     // no data
+    Rollback, // no data
+    Reboot,   // no data
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StatusError {
@@ -42,12 +42,21 @@ pub enum StatusDetail {
 #[derive(Debug, PartialEq)]
 struct ACKPacket {
     command: ACKcmd,
+    data_addr: Option<u8>,
+    data_len: Option<u8>,
+    data: Option<[u8; 16]>, // doc p20
     error: Option<StatusError>,
     detail: Option<StatusDetail>,
 }
+
 struct ACKReader {
     pub(crate) state: ACKReaderState,
     buffer: ArrayVec<[ACKPacket; TRAME_READER_INTERNAL_BUFFER_SIZE]>,
+}
+
+struct AssociatedData {
+    error: Option<u8>,
+    status: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -68,17 +77,26 @@ pub(crate) enum ACKReaderState {
     },
     DataLen {
         cmd: ACKcmd,
+        data_addr: Option<u8>,
     },
     Data {
         cmd: ACKcmd,
-        data_len: u8,
+        data_addr: Option<u8>,
+        data_len: Option<u8>,
+        data: Option<[u8; 16]>,
         current_index: u8,
     },
     Error {
         cmd: ACKcmd,
+        data_addr: Option<u8>,
+        data_len: Option<u8>,
+        data: Option<[u8; 16]>,
     },
     Detail {
         cmd: ACKcmd,
+        data_addr: Option<u8>,
+        data_len: Option<u8>,
+        data: Option<[u8; 16]>,
         error: Option<StatusError>,
     },
 }
@@ -92,7 +110,7 @@ impl ACKReader {
         }
     }
 
-    // Renvoi le premier ACKcmd du buffer
+    // Renvoi le premier ACKPacket du buffer
     pub fn pop_ack(&mut self) -> Option<ACKPacket> {
         self.buffer.pop()
     }
@@ -141,94 +159,175 @@ impl ACKReader {
             Checksum2 { ref cmd } => {
                 self.state = DataAddr { cmd: *cmd };
             }
-            DataAddr { ref cmd } => {
-                self.state = DataLen { cmd: *cmd };
-            }
-            DataLen { ref cmd } if byte > 0 => {
-                // POURQUOI REF ?? :(
-                self.state = Data {
+            // Si la commande etait EEPRead ou RamRead, on recupere des donnees
+            DataAddr { ref cmd } if (*cmd == EEPRead || *cmd == RamRead) => {
+                self.state = DataLen {
                     cmd: *cmd,
-                    data_len: byte,
-                    current_index: 0,
+                    data_addr: Some(byte),
                 };
             }
-            DataLen { ref cmd } if byte == 0 => {
-                self.state = Error { cmd: *cmd };
+            // Sinon on passe à l'état suivant
+            DataAddr { ref cmd } => {
+                self.state = Error {
+                    cmd: *cmd,
+                    data_addr: None,
+                    data_len: None,
+                    data: None,
+                };
             }
-            Data {
+            // Si on doit recuperer des donnees, on renvoie aussi la taille de ces donnees
+            DataLen {
                 ref cmd,
-                data_len,
-                current_index,
+                ref data_addr,
             }
-                if current_index < data_len - 1 =>
+                if byte > 0 =>
             {
                 self.state = Data {
                     cmd: *cmd,
-                    data_len: data_len,
+                    data_addr: *data_addr,
+                    data_len: Some(byte),
+                    data: Some([0x00; 16]),
+                    current_index: 0,
+                };
+            }
+            // Si DataLen = 0 passer a l'etat suivant
+            DataLen {
+                ref cmd,
+                ref data_addr,
+            }
+                if byte == 0 =>
+            {
+                self.state = Error {
+                    cmd: *cmd,
+                    data_addr: *data_addr,
+                    data_len: None,
+                    data: None,
+                };
+            }
+            Data {
+                ref cmd,
+                ref data_addr,
+                ref data_len,
+                data,
+                current_index,
+            }
+                if current_index < data_len.unwrap() - 1 =>
+            {
+                let mut in_data = data.unwrap(); // c'est pas joli mais ca marche :)
+                in_data[current_index as usize] = byte; // c'est pas joli mais ca marche :)
+                self.state = Data {
+                    cmd: *cmd,
+                    data_addr: *data_addr,
+                    data_len: *data_len,
+                    data: Some(in_data),
                     current_index: current_index + 1,
                 }
             }
             Data {
                 ref cmd,
-                data_len,
+                ref data_addr,
+                ref data_len,
+                ref data,
                 current_index,
             }
-                if current_index == data_len - 1 =>
+                if current_index == data_len.unwrap() - 1 =>
             {
-                self.state = Error { cmd: *cmd };
+                let mut in_data = data.unwrap(); // c'est pas joli mais ca marche :)
+                in_data[current_index as usize] = byte; // c'est pas joli mais ca marche :)
+                self.state = Error {
+                    cmd: *cmd,
+                    data_addr: *data_addr,
+                    data_len: *data_len,
+                    data: Some(in_data),
+                };
             }
-            Error { cmd } => match byte {
+            Error {
+                ref cmd,
+                ref data_addr,
+                ref data_len,
+                ref mut data,
+            } => match byte {
                 0x00 => {
                     self.state = Detail {
-                        cmd: cmd,
+                        cmd: *cmd,
+                        data_addr: *data_addr,
+                        data_len: *data_len,
+                        data: *data,
                         error: None,
                     }
                 }
                 0x01 => {
                     self.state = Detail {
-                        cmd: cmd,
+                        cmd: *cmd,
+                        data_addr: *data_addr,
+                        data_len: *data_len,
+                        data: *data,
                         error: Some(ExceedInputVoltageLimit),
                     }
                 }
                 0x02 => {
                     self.state = Detail {
-                        cmd: cmd,
+                        cmd: *cmd,
+                        data_addr: *data_addr,
+                        data_len: *data_len,
+                        data: *data,
                         error: Some(ExceedAllowedPOTLimit),
                     }
                 }
                 0x04 => {
                     self.state = Detail {
-                        cmd: cmd,
+                        cmd: *cmd,
+                        data_addr: *data_addr,
+                        data_len: *data_len,
+                        data: *data,
                         error: Some(ExceedTemperatureLimit),
                     }
                 }
                 0x08 => {
                     self.state = Detail {
-                        cmd: cmd,
+                        cmd: *cmd,
+                        data_addr: *data_addr,
+                        data_len: *data_len,
+                        data: *data,
                         error: Some(InvalidPacket),
                     }
                 }
                 0x10 => {
                     self.state = Detail {
-                        cmd: cmd,
+                        cmd: *cmd,
+                        data_addr: *data_addr,
+                        data_len: *data_len,
+                        data: *data,
                         error: Some(OverloadDetected),
                     }
                 }
                 0x20 => {
                     self.state = Detail {
-                        cmd: cmd,
+                        cmd: *cmd,
+                        data_addr: *data_addr,
+                        data_len: *data_len,
+                        data: *data,
                         error: Some(DriverFaultDetected),
                     }
                 }
                 0x40 => {
                     self.state = Detail {
-                        cmd: cmd,
+                        cmd: *cmd,
+                        data_addr: *data_addr,
+                        data_len: *data_len,
+                        data: *data,
                         error: Some(EEPREGDistorded),
                     }
                 }
-                _ => (),
+                _ => self.state = H1,
             },
-            Detail { ref cmd, ref error } => {
+            Detail {
+                ref cmd,
+                ref data_addr,
+                ref data_len,
+                ref data,
+                ref error,
+            } => {
                 let mut detail: Option<StatusDetail>;
                 match byte {
                     0x00 => detail = None,
@@ -243,8 +342,11 @@ impl ACKReader {
                 }
                 let packet = ACKPacket {
                     command: *cmd,
+                    data_addr: *data_addr,
+                    data_len: *data_len,
+                    data: *data,
                     error: *error,
-                    detail,
+                    detail: detail,
                 };
                 self.buffer.push(packet);
                 self.state = H1;
@@ -260,18 +362,53 @@ mod test {
     #[test]
     fn test() {
         let mut reader = ACKReader::new();
-        let packet = [
-            0xFF, 0xFF, 0x0F, 0xFD, 0x42, 0x4C, 0xB2, 0x1E, 0x04, 0xB8, 0x01, 0x40, 0x1F, 0x00,
-            0x00,
+
+        // Test de EEPRead
+        let packet_eepread = [
+            0xFF, 0xFF, 0x0F, 0xFD, 0x42, 0x4C, 0xB2, 0x1E, 0x04, 0xB8, 0x01, 0x40, 0x1F, 0x08,
+            0x20,
         ];
 
-        reader.parse(&packet);
+        reader.parse(&packet_eepread);
+
+        let data_eepread: [u8; 16] = [
+            0xB8, 0x01, 0x40, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00,
+        ];
+
         assert_eq!(
             reader.pop_ack(),
             Some(ACKPacket {
                 command: ACKcmd::EEPRead,
+                data_addr: Some(0x1E),
+                data_len: Some(0x04),
+                data: Some(data_eepread),
+                error: Some(StatusError::InvalidPacket),
+                detail: Some(StatusDetail::GarbageDetected),
+            })
+        );
+
+        // Test de RAMRead
+        let packet_ramread = [
+            0xFF, 0xFF, 0x0C, 0xFD, 0x44, 0xC2, 0x3C, 0x35, 0x01, 0x01, 0x00, 0x40,
+        ];
+
+        reader.parse(&packet_ramread);
+
+        let data_ramread: [u8; 16] = [
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00,
+        ];
+
+        assert_eq!(
+            reader.pop_ack(),
+            Some(ACKPacket {
+                command: ACKcmd::RamRead,
+                data_addr: Some(0x35),
+                data_len: Some(0x01),
+                data: Some(data_ramread),
                 error: None,
-                detail: None
+                detail: Some(StatusDetail::MotorOnFlag),
             })
         );
     }
