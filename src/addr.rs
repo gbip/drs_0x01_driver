@@ -101,12 +101,6 @@ pub enum ReadableRamAddr {
     DesiredVelocity,
 }
 
-pub struct RamReadData {
-    addr : ReadableRamAddr,
-    data_len : u8,
-    data : [u8;2],
-}
-
 impl ReadableRamAddr {
     /// Return the size in bytes of the value stocked at this address
     pub fn bytes(&self) -> u8 {
@@ -159,6 +153,12 @@ impl ReadableRamAddr {
             ReadableRamAddr::DesiredVelocity => 1,
         }
     }
+}
+
+pub struct RamReadData {
+    pub addr : ReadableRamAddr,
+    pub data_len : u8,
+    pub data : [u8;2],
 }
 
 /// This enum represent all the RAM (volatile) memory addresses which can be written to. I comes
@@ -375,6 +375,60 @@ impl From<ReadableRamAddr> for u8 {
     }
 }
 
+impl TryFrom<u8> for ReadableRamAddr {
+    type Error = Error;
+    fn try_from(addr: u8) -> Result<ReadableRamAddr, Error> {
+        match addr {
+            0 => Ok(ReadableRamAddr::ID),
+            1 => Ok(ReadableRamAddr::AckPolicy),
+            2 => Ok(ReadableRamAddr::AlarmLEDPolicy),
+            3 => Ok(ReadableRamAddr::TorquePolicy),
+            5 => Ok(ReadableRamAddr::MaxTemperature),
+            6 => Ok(ReadableRamAddr::MinVoltage),
+            7 => Ok(ReadableRamAddr::MaxVoltage),
+            8 => Ok(ReadableRamAddr::AccelerationRatio),
+            9 => Ok(ReadableRamAddr::MaxAcceleration),
+            10 => Ok(ReadableRamAddr::DeadZone),
+            11 => Ok(ReadableRamAddr::SaturatorOffset),
+            12 => Ok(ReadableRamAddr::SaturatorSlope(0, 0)),
+            14 => Ok(ReadableRamAddr::PWMOffset),
+            15 => Ok(ReadableRamAddr::MinPWM),
+            16 => Ok(ReadableRamAddr::MaxPWM(0, 0)),
+            18 => Ok(ReadableRamAddr::OverloadPWMThreshold(0, 0)),
+            20 => Ok(ReadableRamAddr::MinPosition(0, 0)),
+            22 => Ok(ReadableRamAddr::MaxPosition(0, 0)),
+            24 => Ok(ReadableRamAddr::PositionKp(0, 0)),
+            26 => Ok(ReadableRamAddr::PositionKd(0, 0)),
+            28 => Ok(ReadableRamAddr::PositionKi(0, 0)),
+            30 => Ok(ReadableRamAddr::PositionFFFirstGain(0, 0)),
+            32 => Ok(ReadableRamAddr::PositionFFSecondGain(0, 0)),
+            38 => Ok(ReadableRamAddr::LedBlinkPeriod),
+            39 => Ok(ReadableRamAddr::ADCFaultDetectionPeriod),
+            40 => Ok(ReadableRamAddr::PacketGarbageDetectionPeriod),
+            41 => Ok(ReadableRamAddr::StopDetectionPeriod),
+            42 => Ok(ReadableRamAddr::OverloadDetectionPeriod),
+            43 => Ok(ReadableRamAddr::StopThreshold),
+            44 => Ok(ReadableRamAddr::InpositionMargin),
+            47 => Ok(ReadableRamAddr::CalibrationDifference),
+            48 => Ok(ReadableRamAddr::StatusError),
+            49 => Ok(ReadableRamAddr::StatusDetail),
+            52 => Ok(ReadableRamAddr::TorqueControl),
+            53 => Ok(ReadableRamAddr::LEDControl),
+            54 => Ok(ReadableRamAddr::Voltage),
+            55 => Ok(ReadableRamAddr::Temperature),
+            56 => Ok(ReadableRamAddr::CurrentControlMode),
+            57 => Ok(ReadableRamAddr::Tick),
+            58 => Ok(ReadableRamAddr::CalibratedPosition),
+            60 => Ok(ReadableRamAddr::AbsolutePosition),
+            62 => Ok(ReadableRamAddr::DifferentialPosition),
+            64 => Ok(ReadableRamAddr::PWM),
+            68 => Ok(ReadableRamAddr::AbsoluteGoalPosition),
+            70 => Ok(ReadableRamAddr::AbsoluteDesiredTrajectoryPosition),
+            72 => Ok(ReadableRamAddr::DesiredVelocity),
+        }
+    }
+}
+
 impl From<WritableRamAddr> for u8 {
     fn from(addr: WritableRamAddr) -> Self {
         use addr::WritableRamAddr::*;
@@ -541,9 +595,53 @@ pub enum ReadableEEPAddr {
 }
 
 pub struct EEPReadData {
-    addr : ReadableEEPAddr,
-    data_len : u8,
-    data : [u8;2],
+    pub addr : ReadableEEPAddr,
+    pub data_len : u8,
+    pub data : [u8;2],
+}
+
+impl ReadableEEPAddr {
+    /// Return the number of bytes associated with an address
+    pub fn bytes(&self) -> u8 {
+        match *self {
+            ReadableEEPAddr::ModelNo1 => 1,
+            ReadableEEPAddr::ModelNo2 => 1,
+            ReadableEEPAddr::Version1 => 1,
+            ReadableEEPAddr::Version2 => 1,
+            ReadableEEPAddr::BaudRate => 1,
+            ReadableEEPAddr::ID => 1,
+            ReadableEEPAddr::AckPolicy => 1,
+            ReadableEEPAddr::AlarmLEDPolicy => 1,
+            ReadableEEPAddr::TorquePolicy => 1,
+            ReadableEEPAddr::MaxTemperature => 1,
+            ReadableEEPAddr::MinVoltage => 1,
+            ReadableEEPAddr::MaxVoltage => 1,
+            ReadableEEPAddr::AccelerationRatio => 1,
+            ReadableEEPAddr::MaxAccelerationTime => 1,
+            ReadableEEPAddr::DeadZone => 1,
+            ReadableEEPAddr::SaturatorOffset => 1,
+            ReadableEEPAddr::SaturatorSlope => 2,
+            ReadableEEPAddr::PWMOffset => 1,
+            ReadableEEPAddr::MinPWM => 1,
+            ReadableEEPAddr::MaxPWM => 2,
+            ReadableEEPAddr::OverloadPWMThreshold => 2,
+            ReadableEEPAddr::MinPosition => 2,
+            ReadableEEPAddr::MaxPosition => 2,
+            ReadableEEPAddr::PositionKp => 2,
+            ReadableEEPAddr::PositionKd => 2,
+            ReadableEEPAddr::PositionKi => 2,
+            ReadableEEPAddr::PositionFFFirstGain => 2,
+            ReadableEEPAddr::PositionFFSecondGain => 2,
+            ReadableEEPAddr::LedBlinkPeriod => 1,
+            ReadableEEPAddr::ADCFaultCheckPeriod => 1,
+            ReadableEEPAddr::PacketGarbageDetectionPeriod => 1,
+            ReadableEEPAddr::StopDetectionPeriod => 1,
+            ReadableEEPAddr::OverloadDetectionPeriod => 1,
+            ReadableEEPAddr::StopThreshold => 1,
+            ReadableEEPAddr::InpositionMargin => 1,
+            ReadableEEPAddr::CalibrationDifference => 1,
+        }
+    }
 }
 
 impl From<ReadableEEPAddr> for u8 {
@@ -585,6 +683,50 @@ impl From<ReadableEEPAddr> for u8 {
             ReadableEEPAddr::StopThreshold => 49,
             ReadableEEPAddr::InpositionMargin => 50,
             ReadableEEPAddr::CalibrationDifference => 53,
+        }
+    }
+}
+
+impl TryFrom<u8> for ReadableEEPAddr {
+    type Error = Error;
+    fn try_from(addr: u8) -> Result<ReadableEEPAddr, Error> {
+        match addr {
+            0 => Ok(ReadableEEPAddr::ModelNo1),
+            1 => Ok(ReadableEEPAddr::ModelNo2),
+            2 => Ok(ReadableEEPAddr::Version1),
+            3 => Ok(ReadableEEPAddr::Version2),
+            4 => Ok(ReadableEEPAddr::BaudRate),
+            6 => Ok(ReadableEEPAddr::ID),
+            7 => Ok(ReadableEEPAddr::AckPolicy),
+            8 => Ok(ReadableEEPAddr::AlarmLEDPolicy),
+            9 => Ok(ReadableEEPAddr::TorquePolicy),
+            11 => Ok(ReadableEEPAddr::MaxTemperature),
+            12 => Ok(ReadableEEPAddr::MinVoltage),
+            13 => Ok(ReadableEEPAddr::MaxVoltage),
+            14 => Ok(ReadableEEPAddr::AccelerationRatio),
+            15 => Ok(ReadableEEPAddr::MaxAccelerationTime),
+            16 => Ok(ReadableEEPAddr::DeadZone),
+            17 => Ok(ReadableEEPAddr::SaturatorOffset),
+            18 => Ok(ReadableEEPAddr::SaturatorSlope),
+            20 => Ok(ReadableEEPAddr::PWMOffset),
+            21 => Ok(ReadableEEPAddr::MinPWM),
+            22 => Ok(ReadableEEPAddr::MaxPWM),
+            24 => Ok(ReadableEEPAddr::OverloadPWMThreshold),
+            26 => Ok(ReadableEEPAddr::MinPosition),
+            28 => Ok(ReadableEEPAddr::MaxPosition),
+            30 => Ok(ReadableEEPAddr::PositionKp),
+            32 => Ok(ReadableEEPAddr::PositionKd),
+            34 => Ok(ReadableEEPAddr::PositionKi),
+            36 => Ok(ReadableEEPAddr::PositionFFFirstGain),
+            38 => Ok(ReadableEEPAddr::PositionFFSecondGain),
+            44 => Ok(ReadableEEPAddr::LedBlinkPeriod),
+            45 => Ok(ReadableEEPAddr::ADCFaultCheckPeriod),
+            46 => Ok(ReadableEEPAddr::PacketGarbageDetectionPeriod),
+            47 => Ok(ReadableEEPAddr::StopDetectionPeriod),
+            48 => Ok(ReadableEEPAddr::OverloadDetectionPeriod),
+            49 => Ok(ReadableEEPAddr::StopThreshold),
+            50 => Ok(ReadableEEPAddr::InpositionMargin),
+            53 => Ok(ReadableEEPAddr::CalibrationDifference),
         }
     }
 }
@@ -739,50 +881,6 @@ impl TryFrom<u8> for WritableEEPAddr {
             50 => Ok( WritableEEPAddr::InpositionMargin(0)),
             53 => Ok( WritableEEPAddr::CalibrationDifference(0)),
             _ => Err(Error::InvalidAddress)// blblblblblb
-        }
-    }
-}
-
-impl ReadableEEPAddr {
-    /// Return the number of bytes associated with an address
-    pub fn bytes(&self) -> u8 {
-        match *self {
-            ReadableEEPAddr::ModelNo1 => 1,
-            ReadableEEPAddr::ModelNo2 => 1,
-            ReadableEEPAddr::Version1 => 1,
-            ReadableEEPAddr::Version2 => 1,
-            ReadableEEPAddr::BaudRate => 1,
-            ReadableEEPAddr::ID => 1,
-            ReadableEEPAddr::AckPolicy => 1,
-            ReadableEEPAddr::AlarmLEDPolicy => 1,
-            ReadableEEPAddr::TorquePolicy => 1,
-            ReadableEEPAddr::MaxTemperature => 1,
-            ReadableEEPAddr::MinVoltage => 1,
-            ReadableEEPAddr::MaxVoltage => 1,
-            ReadableEEPAddr::AccelerationRatio => 1,
-            ReadableEEPAddr::MaxAccelerationTime => 1,
-            ReadableEEPAddr::DeadZone => 1,
-            ReadableEEPAddr::SaturatorOffset => 1,
-            ReadableEEPAddr::SaturatorSlope => 2,
-            ReadableEEPAddr::PWMOffset => 1,
-            ReadableEEPAddr::MinPWM => 1,
-            ReadableEEPAddr::MaxPWM => 2,
-            ReadableEEPAddr::OverloadPWMThreshold => 2,
-            ReadableEEPAddr::MinPosition => 2,
-            ReadableEEPAddr::MaxPosition => 2,
-            ReadableEEPAddr::PositionKp => 2,
-            ReadableEEPAddr::PositionKd => 2,
-            ReadableEEPAddr::PositionKi => 2,
-            ReadableEEPAddr::PositionFFFirstGain => 2,
-            ReadableEEPAddr::PositionFFSecondGain => 2,
-            ReadableEEPAddr::LedBlinkPeriod => 1,
-            ReadableEEPAddr::ADCFaultCheckPeriod => 1,
-            ReadableEEPAddr::PacketGarbageDetectionPeriod => 1,
-            ReadableEEPAddr::StopDetectionPeriod => 1,
-            ReadableEEPAddr::OverloadDetectionPeriod => 1,
-            ReadableEEPAddr::StopThreshold => 1,
-            ReadableEEPAddr::InpositionMargin => 1,
-            ReadableEEPAddr::CalibrationDifference => 1,
         }
     }
 }
