@@ -3,20 +3,64 @@
 
 use arrayvec::ArrayVec;
 
+use addr::WritableEEPAddr;
+use addr::WritableRamAddr;
+use addr::EEPReadData;
+use addr::RamReadData;
+
 pub const TRAME_READER_INTERNAL_BUFFER_SIZE: usize = 64;
 
+// Structure renvoyée en fin de machine
+
+pub struct ACKPacket {
+    psize : u8,
+    pid : u8,
+    cmd : u8,
+    chk1 : u8,
+    chk2 : u8,
+    data : AssociatedData,
+    error : StatusError,
+    detail : StatusDetail,
+}
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ACKcmd {
+pub enum Command {
+    EEPWrite{status : StatusDetail, error : StatusError},
+    EEPRead{data : EEPReadData, status : StatusDetail, error : StatusError},
+    RamWrite{status : StatusDetail, error : StatusError},
+    RamRead{data : RamReadData, status : StatusDetail, error : StatusError},
+    IJog{status : StatusDetail, error : StatusError},
+    SJog{status : StatusDetail, error : StatusError},
+    Stat{status : StatusDetail, error : StatusError},
+    Rollback{status : StatusDetail, error : StatusError},
+    Reboot{status : StatusDetail, error : StatusError},
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum InternalCommand {
     EEPWrite,
-    EEPRead, // contient data (doc p42)
+    EEPRead,
     RamWrite,
-    RamRead, // contient data (doc p45)
+    RamRead,
     IJog,
     SJog,
-    Stat,     // no data
-    Rollback, // no data
-    Reboot,   // no data
+    Stat,
+    Rollback,
+    Reboot,
 }
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum InternalCommandWithData {
+    EEPWrite,
+    EEPRead{data : EEPReadData},
+    RamWrite,
+    RamRead{data : RamReadData},
+    IJog,
+    SJog,
+    Stat,
+    Rollback,
+    Reboot,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StatusError {
     ExceedInputVoltageLimit,
@@ -39,73 +83,314 @@ pub enum StatusDetail {
     MotorOnFlag,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Copy,Clone,Debug)]
+enum AssociatedData {
+    EEP(EEPReadData),
+    Ram(RamReadData),
+    Nothing
+}
+
+/*#[derive(Debug, PartialEq)]
 struct ACKPacket {
-    command: ACKcmd,
+    command: Command,
     data_addr: Option<u8>,
     data_len: Option<u8>,
     data: Option<[u8; 16]>, // doc p20
     error: Option<StatusError>,
     detail: Option<StatusDetail>,
-}
+}*/
 
 struct ACKReader {
-    pub(crate) state: ACKReaderState,
+    pub(crate) state: ReaderState,
     buffer: ArrayVec<[ACKPacket; TRAME_READER_INTERNAL_BUFFER_SIZE]>,
 }
 
-struct AssociatedData {
-    error: Option<u8>,
-    status: Option<u8>,
-}
-
+// Structure permettant de gérer la machine à états
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum ACKReaderState {
+pub(crate) enum ReaderState {
     H1,
     H2,
     Psize,
-    Pid,
-    Cmd,
+    Pid {
+        size : u8
+    },
+    Cmd {
+        size : u8,
+        pid : u8,
+    },
     Checksum1 {
-        cmd: ACKcmd,
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
     },
     Checksum2 {
-        cmd: ACKcmd,
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
+        chk1 : u8,
     },
     DataAddr {
-        cmd: ACKcmd,
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
+        chk1 : u8,
+        chk2 : u8,
     },
-    DataLen {
-        cmd: ACKcmd,
-        data_addr: Option<u8>,
+    DataLenEEP {
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
+        chk1 : u8,
+        chk2 : u8,
+        data_addr : WritableEEPAddr,
     },
-    Data {
-        cmd: ACKcmd,
-        data_addr: Option<u8>,
-        data_len: Option<u8>,
-        data: Option<[u8; 16]>,
-        current_index: u8,
+    Data1EEP {
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
+        chk1 : u8,
+        chk2 : u8,
+        data_addr : WritableEEPAddr,
+        data_len : u8,
+    },
+    Data2EEP {
+        size : u8,
+        pid : u8,
+        cmd: InternalCommandWithData,
+        chk1 : u8,
+        chk2 : u8,
+        data_addr : WritableEEPAddr,
+        data_len : u8,
+    },
+    DataLenRAM {
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
+        chk1 : u8,
+        chk2 : u8,
+        data_addr : WritableRamAddr,
+    },
+    Data1RAM {
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
+        chk1 : u8,
+        chk2 : u8,
+        data_addr : WritableRamAddr,
+        data_len : u8,
+    },
+    Data2RAM {
+        size : u8,
+        pid : u8,
+        cmd: InternalCommandWithData,
+        chk1 : u8,
+        chk2 : u8,
+        data_addr : WritableRamAddr,
+        data_len : u8,
     },
     Error {
-        cmd: ACKcmd,
-        data_addr: Option<u8>,
-        data_len: Option<u8>,
-        data: Option<[u8; 16]>,
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
+        chk1 : u8,
+        chk2 : u8,
+        payload : AssociatedData,
     },
     Detail {
-        cmd: ACKcmd,
-        data_addr: Option<u8>,
-        data_len: Option<u8>,
-        data: Option<[u8; 16]>,
-        error: Option<StatusError>,
-    },
+        size : u8,
+        pid : u8,
+        cmd: InternalCommand,
+        chk1 : u8,
+        chk2 : u8,
+        status_error : StatusError,
+        payload : AssociatedData,
+    }
 }
+
+impl ReaderState {
+
+    fn step(&mut self, byte : u8) -> Option<Command> {
+        use reader::ReaderState::*;
+        use reader::InternalCommand::*;
+        use reader::AssociatedData::*;
+        use addr::WritableRamAddr::*;
+        use addr::WritableEEPAddr::*;
+
+        let a = match *self {
+            H1 => {
+                *self = H2
+            },
+            H2 => {
+                *self = Psize
+            },
+            Psize => {
+                *self = Pid {
+                    size: byte
+                }
+            },
+            Pid { size } => {
+                *self = Cmd {
+                    size: size,
+                    pid: byte,
+                }
+            },
+            Cmd { size, pid } => {
+                let mut command: InternalCommand;
+                match byte {
+                    0x41 => command = EEPWrite,
+                    0x42 => command = EEPRead,
+                    0x43 => command = RamWrite,
+                    0x44 => command = RamRead,
+                    0x45 => command = IJog,
+                    0x46 => command = SJog,
+                    0x47 => command = Stat,
+                    0x48 => command = Rollback,
+                    0x49 => command = Reboot,
+                    _ => *self = H1,
+                }
+                *self = Checksum1 {
+                    size: size,
+                    pid: pid,
+                    cmd: command
+                }
+            }
+            Checksum1 { size, pid, cmd } => {
+                *self = Checksum2 {
+                    size: size,
+                    pid: pid,
+                    cmd: cmd,
+                    chk1: byte,
+                }
+            },
+            Checksum2 { size, pid, cmd, chk1 } if (cmd == EEPRead || cmd == RamRead) => {
+                *self = DataAddr {
+                    size: size,
+                    pid: pid,
+                    cmd: cmd,
+                    chk1: chk1,
+                    chk2: byte,
+                }
+            },
+            Checksum2 { size, pid, cmd, chk1 } => {
+                *self = Error {
+                    size: size,
+                    pid: pid,
+                    cmd: cmd,
+                    chk1: chk1,
+                    chk2: byte,
+                    payload: Nothing,
+                }
+            },
+            DataAddr { size, pid, cmd, chk1, chk2 } => {
+                match cmd {
+                    EEPRead => {
+                        *self = match WritableEEPAddr::try_from(byte) {
+                            Ok(data_addr) => DataLenEEP {
+                                size: size,
+                                pid: pid,
+                                cmd: cmd,
+                                chk1: chk1,
+                                chk2: chk2,
+                                data_addr: data_addr
+                            },
+                            Err(_) => H1
+                        }
+                    },
+                    RamRead => {
+                        *self = match WritableRamAddr::try_from(byte) {
+                            Ok(data_addr) => DataLenRAM {
+                                size: size,
+                                pid: pid,
+                                cmd: cmd,
+                                chk1: chk1,
+                                chk2: chk2,
+                                data_addr: data_addr
+                            },
+                            Err(_) => H1
+                        }
+                    },
+                }
+            }
+            DataLenEEP { size, pid, cmd, chk1, chk2, data_addr } => {
+                *self = Data1EEP {
+                    size: size,
+                    pid: pid,
+                    cmd: cmd,
+                    chk1: chk1,
+                    chk2: chk2,
+                    data_addr: data_addr,
+                    data_len: byte,
+                }
+            }
+            DataLenRAM { size, pid, cmd, chk1, chk2, data_addr } => {
+                *self = Data1RAM {
+                    size: size,
+                    pid: pid,
+                    cmd: cmd,
+                    chk1: chk1,
+                    chk2: chk2,
+                    data_addr: data_addr,
+                    data_len: byte,
+                }
+            }
+            _ => (),
+
+        /*Cmd => { self = match data {
+                0x41 => ReaderState::Checksum1 { cmd : InternalCommand::EEPWrite},
+                _ => ReaderState::H1,
+
+            };
+            None
+            },
+            Checksum2 => {None},
+            ReaderState::Parsing {
+                chk1 : u8,
+                chk2 : u8,
+                cmd: InternalCommand,
+            } => {
+
+
+
+            }*/
+        };
+    }
+}
+
+// Structure permettant de gérer la machine à états qui lit les données (optionnelles) des ACK
+/*pub(crate) enum EEPReadParser {
+    WaitingForAddr,
+    WaitingForLen {
+        data_address: u8,
+    },
+    WaitingForData {
+        data_address: u8,
+        data_len: u8,
+    },
+    ReadingData {
+        data_address: u8,
+        data_len: u8,
+        data: [u8; 16],
+        current_index: u8,
+    },
+}*/
+// Structure permettant de gérer la machine à états qui lit les statuts des ACK
+/*pub (crate) enum StatusParser {
+    WaitingForStatusError,
+    WaitingForStatusDetail {error : StatusError},
+}*/
+
+// Structure permettant de gérer la machine à états générale
+/*pub (crate) enum GlobalParser {
+    WaitingForCommand,
+    WaitingForData {command : Command},
+    WaitingForStatus {command : Command,data : Option<[u8;16]>},
+}*/
 
 impl ACKReader {
     // Creation d'un ACKReader a l'état H1 et avec un buffer vide
     pub fn new() -> ACKReader {
         ACKReader {
-            state: ACKReaderState::H1,
+            state: ReaderState::H1,
             buffer: ArrayVec::new(),
         }
     }
@@ -127,10 +412,13 @@ impl ACKReader {
         }
     }
 
+    pub fn step(&mut self, byte : u8) {
+    }
+
     // Lit un octet et fait avancer ou non l'état
-    pub fn step(&mut self, byte: u8) {
-        use reader::ACKReaderState::*;
-        use reader::ACKcmd::*;
+    /*pub fn step(&mut self, byte: u8) {
+        use reader::ReaderState::*;
+        use reader::Command::*;
         use reader::StatusDetail::*;
         use reader::StatusError::*;
 
@@ -353,15 +641,15 @@ impl ACKReader {
             }
             _ => self.state = H1,
         }
-    }
+    } */
 }
 
 #[cfg(test)]
 mod test {
-    use reader::{ACKPacket, ACKReader, ACKcmd, StatusDetail, StatusError};
+    use reader::{ACKReader, Command, StatusDetail, StatusError};
     #[test]
     fn test() {
-        let mut reader = ACKReader::new();
+        /*let mut reader = ACKReader::new();
 
         // Test de EEPRead
         let packet_eepread = [
@@ -379,7 +667,7 @@ mod test {
         assert_eq!(
             reader.pop_ack(),
             Some(ACKPacket {
-                command: ACKcmd::EEPRead,
+                command: Command::EEPRead,
                 data_addr: Some(0x1E),
                 data_len: Some(0x04),
                 data: Some(data_eepread),
@@ -403,13 +691,13 @@ mod test {
         assert_eq!(
             reader.pop_ack(),
             Some(ACKPacket {
-                command: ACKcmd::RamRead,
+                command: Command::RamRead,
                 data_addr: Some(0x35),
                 data_len: Some(0x01),
                 data: Some(data_ramread),
                 error: None,
                 detail: Some(StatusDetail::MotorOnFlag),
             })
-        );
+        );*/
     }
 }
