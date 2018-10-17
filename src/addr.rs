@@ -1,10 +1,11 @@
 //! All the servomotor addresses mapped to some enums.
 
-use core::convert::TryFrom;
+extern crate try_from;
+use self::try_from::TryFrom;
 
 /// This enum represent all the RAM (volatile) memory adresses which can be read. I comes from the
 /// page 24 of the datasheet.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ReadableRamAddr {
     /// Servo ID
     ID,
@@ -155,6 +156,7 @@ impl ReadableRamAddr {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RamReadData {
     pub addr : ReadableRamAddr,
     pub data_len : u8,
@@ -376,7 +378,7 @@ impl From<ReadableRamAddr> for u8 {
 }
 
 impl TryFrom<u8> for ReadableRamAddr {
-    type Error = Error;
+    type Err = Error;
     fn try_from(addr: u8) -> Result<ReadableRamAddr, Error> {
         match addr {
             0 => Ok(ReadableRamAddr::ID),
@@ -390,18 +392,18 @@ impl TryFrom<u8> for ReadableRamAddr {
             9 => Ok(ReadableRamAddr::MaxAcceleration),
             10 => Ok(ReadableRamAddr::DeadZone),
             11 => Ok(ReadableRamAddr::SaturatorOffset),
-            12 => Ok(ReadableRamAddr::SaturatorSlope(0, 0)),
+            12 => Ok(ReadableRamAddr::SaturatorSlope),
             14 => Ok(ReadableRamAddr::PWMOffset),
             15 => Ok(ReadableRamAddr::MinPWM),
-            16 => Ok(ReadableRamAddr::MaxPWM(0, 0)),
-            18 => Ok(ReadableRamAddr::OverloadPWMThreshold(0, 0)),
-            20 => Ok(ReadableRamAddr::MinPosition(0, 0)),
-            22 => Ok(ReadableRamAddr::MaxPosition(0, 0)),
-            24 => Ok(ReadableRamAddr::PositionKp(0, 0)),
-            26 => Ok(ReadableRamAddr::PositionKd(0, 0)),
-            28 => Ok(ReadableRamAddr::PositionKi(0, 0)),
-            30 => Ok(ReadableRamAddr::PositionFFFirstGain(0, 0)),
-            32 => Ok(ReadableRamAddr::PositionFFSecondGain(0, 0)),
+            16 => Ok(ReadableRamAddr::MaxPWM),
+            18 => Ok(ReadableRamAddr::OverloadPWMThreshold),
+            20 => Ok(ReadableRamAddr::MinPosition),
+            22 => Ok(ReadableRamAddr::MaxPosition),
+            24 => Ok(ReadableRamAddr::PositionKp),
+            26 => Ok(ReadableRamAddr::PositionKd),
+            28 => Ok(ReadableRamAddr::PositionKi),
+            30 => Ok(ReadableRamAddr::PositionFFFirstGain),
+            32 => Ok(ReadableRamAddr::PositionFFSecondGain),
             38 => Ok(ReadableRamAddr::LedBlinkPeriod),
             39 => Ok(ReadableRamAddr::ADCFaultDetectionPeriod),
             40 => Ok(ReadableRamAddr::PacketGarbageDetectionPeriod),
@@ -473,7 +475,7 @@ impl From<WritableRamAddr> for u8 {
 }
 
 impl TryFrom<u8> for WritableRamAddr {
-    type Error = Error;
+    type Err = Error;
     fn try_from(addr: u8) -> Result<WritableRamAddr, Error> {
         match addr {
             0 => Ok(WritableRamAddr::ID(0)),
@@ -518,7 +520,7 @@ impl TryFrom<u8> for WritableRamAddr {
 /// This enum represent all the EPP (permanent) memory addresses which can be read. I comes from
 /// the page 21 of the
 /// datasheet.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ReadableEEPAddr {
     /// DRS model number first byte
     ModelNo1,
@@ -594,6 +596,7 @@ pub enum ReadableEEPAddr {
     CalibrationDifference,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EEPReadData {
     pub addr : ReadableEEPAddr,
     pub data_len : u8,
@@ -688,7 +691,7 @@ impl From<ReadableEEPAddr> for u8 {
 }
 
 impl TryFrom<u8> for ReadableEEPAddr {
-    type Error = Error;
+    type Err = Error;
     fn try_from(addr: u8) -> Result<ReadableEEPAddr, Error> {
         match addr {
             0 => Ok(ReadableEEPAddr::ModelNo1),
@@ -845,7 +848,7 @@ enum Error {
 }
 
 impl TryFrom<u8> for WritableEEPAddr {
-    type Error = Error;
+    type Err = Error;
     fn try_from(me: u8) -> Result<WritableEEPAddr, Error> {
         match me {
             4 => Ok( WritableEEPAddr::BaudRate(0)),

@@ -49,6 +49,21 @@ pub enum InternalCommand {
     Reboot,
 }
 
+impl InternalCommand {
+    fn into_command_with_data(&self) -> InternalCommandWithData {
+        match *self {
+            EEPWrite => InternalCommandWithData::EEPWrite,
+            RamWrite => InternalCommandWithData::RamWrite,
+            IJog => InternalCommandWithData::IJog,
+            SJog => InternalCommandWithData::SJog,
+            Stat => InternalCommandWithData::Stat,
+            Rollback => InternalCommandWithData::Rollback,
+            Reboot => InternalCommandWithData::Reboot,
+            _ => InternalCommandWithData::Nothing,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum InternalCommandWithData {
     EEPWrite,
@@ -61,6 +76,22 @@ pub enum InternalCommandWithData {
     Rollback,
     Reboot,
     Nothing,
+}
+
+impl InternalCommandWithData {
+    fn into_command(&self, error : StatusError, detail : StatusDetail) -> Command {
+        match *self {
+            EEPWrite => Command::EEPWrite {error,detail},
+            //EEPRead{data} => Command::EEPRead {data,error,detail},
+            RamWrite => Command::RamWrite {error,detail},
+            //RamRead{data} => Command::RamRead {data,error,detail},
+            IJog => Command::IJog {error,detail},
+            SJog => Command::SJog {error,detail},
+            Rollback => Command::Rollback {error,detail},
+            Reboot => Command::Reboot {error,detail},
+            _ => Command::Nothing,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -93,16 +124,6 @@ enum AssociatedData {
     Ram(RamReadData),
     Nothing
 }
-
-/*#[derive(Debug, PartialEq)]
-struct ACKPacket {
-    command: Command,
-    data_addr: Option<u8>,
-    data_len: Option<u8>,
-    data: Option<[u8; 16]>, // doc p20
-    error: Option<StatusError>,
-    detail: Option<StatusDetail>,
-}*/
 
 struct ACKReader {
     pub(crate) state: ReaderState,
@@ -218,37 +239,6 @@ pub(crate) enum ReaderState {
 
 }
 
-impl InternalCommand {
-    fn into_command_with_data(&self) -> InternalCommandWithData {
-        match *self {
-            EEPWrite => InternalCommandWithData::EEPWrite,
-            RamWrite => InternalCommandWithData::RamWrite,
-            IJog => InternalCommandWithData::IJog,
-            SJog => InternalCommandWithData::SJog,
-            Stat => InternalCommandWithData::Stat,
-            Rollback => InternalCommandWithData::Rollback,
-            Reboot => InternalCommandWithData::Reboot,
-            _ => InternalCommandWithData::Nothing,
-        }
-    }
-}
-
-impl InternalCommandWithData {
-    fn into_command(&self, error : StatusError, detail : StatusDetail) -> Command {
-        match *self {
-            EEPWrite => Command::EEPWrite {error,detail},
-            //EEPRead{data} => Command::EEPRead {data,error,detail},
-            RamWrite => Command::RamWrite {error,detail},
-            //RamRead{data} => Command::RamRead {data,error,detail},
-            IJog => Command::IJog {error,detail},
-            SJog => Command::SJog {error,detail},
-            Rollback => Command::Rollback {error,detail},
-            Reboot => Command::Reboot {error,detail},
-            _ => Command::Nothing,
-        }
-    }
-}
-
 impl ReaderState {
 
     fn step(&mut self, byte : u8) -> Option<Command> {
@@ -332,7 +322,7 @@ impl ReaderState {
             DataAddr { size, pid, cmd, chk1, chk2 } => {
                 match cmd {
                     EEPRead => {
-                        *self = match ReadableEEPAddr::try_from(byte) {
+                        *self = match try_from(byte) {
                             Ok(data_addr) => DataLenEEP {
                                 size: size,
                                 pid: pid,
@@ -349,7 +339,7 @@ impl ReaderState {
                         }
                     },
                     RamRead => {
-                        *self = match ReadableRamAddr::try_from(byte) {
+                        *self = match try_from(byte) {
                             Ok(data_addr) => DataLenRAM {
                                 size: size,
                                 pid: pid,
@@ -666,237 +656,6 @@ impl ACKReader {
             self.step(*byte);
         }
     }
-
-    pub fn step(&mut self, byte : u8) {
-    }
-
-    // Lit un octet et fait avancer ou non l'état
-    /*pub fn step(&mut self, byte: u8) {
-        use reader::ReaderState::*;
-        use reader::Command::*;
-        use reader::StatusDetail::*;
-        use reader::StatusError::*;
-
-        match self.state.clone() {
-            H1 if byte == 0xFF => self.state = H2,
-            H2 if byte == 0xFF => self.state = Psize,
-            Psize => self.state = Pid,
-            Pid => self.state = Cmd,
-            Cmd => match byte {
-                0x41 => self.state = Checksum1 { cmd: EEPWrite },
-                0x42 => self.state = Checksum1 { cmd: EEPRead },
-                0x43 => self.state = Checksum1 { cmd: RamWrite },
-                0x44 => self.state = Checksum1 { cmd: RamRead },
-                0x45 => self.state = Checksum1 { cmd: IJog },
-                0x46 => self.state = Checksum1 { cmd: SJog },
-                0x47 => self.state = Checksum1 { cmd: Stat },
-                0x48 => self.state = Checksum1 { cmd: Rollback },
-                0x49 => self.state = Checksum1 { cmd: Reboot },
-                _ => {
-                    self.state = H1;
-                }
-            },
-            Checksum1 { ref cmd } => {
-                self.state = Checksum2 { cmd: *cmd };
-            }
-            Checksum2 { ref cmd } => {
-                self.state = DataAddr { cmd: *cmd };
-            }
-            // Si la commande etait EEPRead ou RamRead, on recupere des donnees
-            DataAddr { ref cmd } if (*cmd == EEPRead || *cmd == RamRead) => {
-                self.state = DataLen {
-                    cmd: *cmd,
-                    data_addr: Some(byte),
-                };
-            }
-            // Sinon on passe à l'état suivant
-            DataAddr { ref cmd } => {
-                self.state = Error {
-                    cmd: *cmd,
-                    data_addr: None,
-                    data_len: None,
-                    data: None,
-                };
-            }
-            // Si on doit recuperer des donnees, on renvoie aussi la taille de ces donnees
-            DataLen {
-                ref cmd,
-                ref data_addr,
-            }
-                if byte > 0 =>
-            {
-                self.state = Data {
-                    cmd: *cmd,
-                    data_addr: *data_addr,
-                    data_len: Some(byte),
-                    data: Some([0x00; 16]),
-                    current_index: 0,
-                };
-            }
-            // Si DataLen = 0 passer a l'etat suivant
-            DataLen {
-                ref cmd,
-                ref data_addr,
-            }
-                if byte == 0 =>
-            {
-                self.state = Error {
-                    cmd: *cmd,
-                    data_addr: *data_addr,
-                    data_len: None,
-                    data: None,
-                };
-            }
-            Data {
-                ref cmd,
-                ref data_addr,
-                ref data_len,
-                data,
-                current_index,
-            }
-                if current_index < data_len.unwrap() - 1 =>
-            {
-                let mut in_data = data.unwrap(); // c'est pas joli mais ca marche :)
-                in_data[current_index as usize] = byte; // c'est pas joli mais ca marche :)
-                self.state = Data {
-                    cmd: *cmd,
-                    data_addr: *data_addr,
-                    data_len: *data_len,
-                    data: Some(in_data),
-                    current_index: current_index + 1,
-                }
-            }
-            Data {
-                ref cmd,
-                ref data_addr,
-                ref data_len,
-                ref data,
-                current_index,
-            }
-                if current_index == data_len.unwrap() - 1 =>
-            {
-                let mut in_data = data.unwrap(); // c'est pas joli mais ca marche :)
-                in_data[current_index as usize] = byte; // c'est pas joli mais ca marche :)
-                self.state = Error {
-                    cmd: *cmd,
-                    data_addr: *data_addr,
-                    data_len: *data_len,
-                    data: Some(in_data),
-                };
-            }
-            Error {
-                ref cmd,
-                ref data_addr,
-                ref data_len,
-                ref mut data,
-            } => match byte {
-                0x00 => {
-                    self.state = Detail {
-                        cmd: *cmd,
-                        data_addr: *data_addr,
-                        data_len: *data_len,
-                        data: *data,
-                        error: None,
-                    }
-                }
-                0x01 => {
-                    self.state = Detail {
-                        cmd: *cmd,
-                        data_addr: *data_addr,
-                        data_len: *data_len,
-                        data: *data,
-                        error: Some(ExceedInputVoltageLimit),
-                    }
-                }
-                0x02 => {
-                    self.state = Detail {
-                        cmd: *cmd,
-                        data_addr: *data_addr,
-                        data_len: *data_len,
-                        data: *data,
-                        error: Some(ExceedAllowedPOTLimit),
-                    }
-                }
-                0x04 => {
-                    self.state = Detail {
-                        cmd: *cmd,
-                        data_addr: *data_addr,
-                        data_len: *data_len,
-                        data: *data,
-                        error: Some(ExceedTemperatureLimit),
-                    }
-                }
-                0x08 => {
-                    self.state = Detail {
-                        cmd: *cmd,
-                        data_addr: *data_addr,
-                        data_len: *data_len,
-                        data: *data,
-                        error: Some(InvalidPacket),
-                    }
-                }
-                0x10 => {
-                    self.state = Detail {
-                        cmd: *cmd,
-                        data_addr: *data_addr,
-                        data_len: *data_len,
-                        data: *data,
-                        error: Some(OverloadDetected),
-                    }
-                }
-                0x20 => {
-                    self.state = Detail {
-                        cmd: *cmd,
-                        data_addr: *data_addr,
-                        data_len: *data_len,
-                        data: *data,
-                        error: Some(DriverFaultDetected),
-                    }
-                }
-                0x40 => {
-                    self.state = Detail {
-                        cmd: *cmd,
-                        data_addr: *data_addr,
-                        data_len: *data_len,
-                        data: *data,
-                        error: Some(EEPREGDistorded),
-                    }
-                }
-                _ => self.state = H1,
-            },
-            Detail {
-                ref cmd,
-                ref data_addr,
-                ref data_len,
-                ref data,
-                ref error,
-            } => {
-                let mut detail: Option<StatusDetail>;
-                match byte {
-                    0x00 => detail = None,
-                    0x01 => detail = Some(MovingFlag),
-                    0x02 => detail = Some(ImpositionFlag),
-                    0x04 => detail = Some(ChecksumError),
-                    0x08 => detail = Some(UnknownCommand),
-                    0x10 => detail = Some(ExceedREGRange),
-                    0x20 => detail = Some(GarbageDetected),
-                    0x40 => detail = Some(MotorOnFlag),
-                    _ => detail = None,
-                }
-                let packet = ACKPacket {
-                    command: *cmd,
-                    data_addr: *data_addr,
-                    data_len: *data_len,
-                    data: *data,
-                    error: *error,
-                    detail: detail,
-                };
-                self.buffer.push(packet);
-                self.state = H1;
-            }
-            _ => self.state = H1,
-        }
-    } */
 }
 
 #[cfg(test)]
