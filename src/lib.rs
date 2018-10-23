@@ -34,13 +34,14 @@
 //! ```
 
 #![no_std]
-#![deny(missing_docs)]
+//#![deny(missing_docs)]
 
 #[cfg(test)]
 #[macro_use]
 extern crate std;
 
 extern crate arrayvec;
+extern crate try_from;
 
 pub mod addr;
 mod builder;
