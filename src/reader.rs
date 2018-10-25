@@ -23,8 +23,36 @@ pub struct ACKPacket {
 
 impl ACKPacket {
     pub fn is_valid(&self) -> bool {
-        // condition de validité du packet
-        self.chk2 == !(self.chk1) & 0xFE
+        use addr::ReadableEEPAddr;
+        use addr::ReadableRamAddr;
+        use reader::Command::*;
+
+        // Construction de chk1
+        let mut chk1 = self.psize;
+        chk1 ^= self.pid;
+        chk1 ^= u8::from(self.cmd);
+
+        match self.cmd {
+            Command::EEPRead { data } => {
+                let a: u8 = data.addr.into();
+                chk1 ^= a;
+                chk1 ^= data.data_len;
+                for i in &data.data[0..data.data_len as usize] {
+                    chk1 ^= i;
+                }
+            }
+            Command::RamRead { data } => {
+                let a: u8 = data.addr.into();
+                chk1 ^= a;
+                chk1 ^= data.data_len;
+                for i in &data.data[0..data.data_len as usize] {
+                    chk1 ^= i;
+                }
+            }
+            _ => (),
+        };
+        chk1 &= 0xFE;
+        self.chk1 == chk1 && self.chk2 == !chk1 & 0xFE
     }
 }
 
@@ -45,7 +73,6 @@ pub enum Command {
     Stat,
     Rollback,
     Reboot,
-    Nothing,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -75,6 +102,23 @@ impl InternalCommand {
             (InternalCommand::EEPRead, AssociatedData::EEP(data)) => EEPRead { data },
             (InternalCommand::RamRead, AssociatedData::Ram(data)) => RamRead { data },
             _ => unreachable!(),
+        }
+    }
+}
+
+impl From<Command> for u8 {
+    fn from(cmd: Command) -> Self {
+        use reader::Command::*;
+        match cmd {
+            EEPWrite => 0x41,
+            EEPRead { data: _ } => 0x42,
+            RamWrite => 0x43,
+            RamRead { data: _ } => 0x44,
+            IJog => 0x45,
+            SJog => 0x46,
+            Stat => 0x47,
+            Rollback => 0x48,
+            Reboot => 0x49,
         }
     }
 }
@@ -400,13 +444,24 @@ impl ReaderState {
                     data_len: data.data_len,
                     data: [byte, 0],
                 };
-                *self = Data2EEP {
-                    size: size,
-                    pid: pid,
-                    cmd: InternalCommand::EEPRead,
-                    chk1: chk1,
-                    chk2: chk2,
-                    data: new_data,
+                if data.data_len == 2 {
+                    *self = Data2EEP {
+                        size: size,
+                        pid: pid,
+                        cmd: InternalCommand::EEPRead,
+                        chk1: chk1,
+                        chk2: chk2,
+                        data: new_data,
+                    }
+                } else {
+                    *self = Error {
+                        size: size,
+                        pid: pid,
+                        cmd: InternalCommand::EEPRead,
+                        chk1: chk1,
+                        chk2: chk2,
+                        payload: AssociatedData::EEP(new_data),
+                    }
                 }
             }
             Data2EEP {
@@ -444,13 +499,24 @@ impl ReaderState {
                     data_len: data.data_len,
                     data: [byte, 0],
                 };
-                *self = Data2RAM {
-                    size: size,
-                    pid: pid,
-                    cmd: InternalCommand::RamRead,
-                    chk1: chk1,
-                    chk2: chk2,
-                    data: new_data,
+                if data.data_len == 2 {
+                    *self = Data2RAM {
+                        size: size,
+                        pid: pid,
+                        cmd: InternalCommand::RamRead,
+                        chk1: chk1,
+                        chk2: chk2,
+                        data: new_data,
+                    }
+                } else {
+                    *self = Error {
+                        size: size,
+                        pid: pid,
+                        cmd: InternalCommand::RamRead,
+                        chk1: chk1,
+                        chk2: chk2,
+                        payload: AssociatedData::Ram(new_data),
+                    }
                 }
             }
             Data2RAM {
@@ -587,7 +653,8 @@ impl ReaderState {
                     0x00 => status_detail = Some(NoDetail),
                     0x01 => status_detail = Some(MovingFlag),
                     0x02 => status_detail = Some(ImpositionFlag),
-                    0x04 => status_detail = Some(UnknownCommand),
+                    0x04 => status_detail = Some(ChecksumError),
+                    0x08 => status_detail = Some(UnknownCommand),
                     0x10 => status_detail = Some(ExceedREGRange),
                     0x20 => status_detail = Some(GarbageDetected),
                     0x40 => status_detail = Some(MotorOnFlag),
@@ -674,13 +741,14 @@ mod test {
     use addr::*;
     use reader::{ACKPacket, ACKReader, AssociatedData, Command, StatusDetail, StatusError};
 
-    #[test]
-    fn test() {
+    //#[test]
+    fn test_eepread() {
         let mut reader = ACKReader::new();
 
         // Test de EEPRead
+        // [H1][H2][psize][pid][cmd][chk1][chk2][data_addr][data_len][data][data][status_error][status_detail]
         let packet_eepread = [
-            0xFF, 0xFF, 0x0F, 0xFD, 0x42, 0x4C, 0xB2, 0x1E, 0x02, 0xB8, 0x01, 0x08, 0x20,
+            0xFF, 0xFF, 0x0F, 0xFD, 0x42, 0x14, 0xEA, 0x1E, 0x02, 0xB8, 0x01, 0x08, 0x20,
         ];
 
         reader.parse(&packet_eepread);
@@ -697,35 +765,67 @@ mod test {
                 psize: 0x0F,
                 pid: 0xFD,
                 cmd: Command::EEPRead { data: data_eepread },
-                chk1: 0x4C,
-                chk2: 0xB2,
+                chk1: 0x14,
+                chk2: 0xEA,
                 error: StatusError::InvalidPacket,
                 detail: StatusDetail::GarbageDetected,
             }
         );
+    }
 
-        /* // Test de RAMRead
+    //#[test]
+    fn test_ramread() {
+        let mut reader = ACKReader::new();
+
+        // Test de RamRead
+        // [H1][H2][psize][pid][cmd][chk1][chk2][data_addr][data_len][data][status_error][status_detail]
         let packet_ramread = [
-            0xFF, 0xFF, 0x0C, 0xFD, 0x44, 0xC2, 0x3C, 0x35, 0x01, 0x01, 0x00, 0x40,
+            0xFF, 0xFF, 0x0C, 0xFD, 0x44, 0xA0, 0x5E, 0x14, 0x01, 0x01, 0x10, 0x40,
         ];
 
         reader.parse(&packet_ramread);
 
-        let data_ramread: [u8; 16] = [
-            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00,
-        ];
+        let data_ramread = RamReadData {
+            addr: ReadableRamAddr::MinPosition, // 20 (0x14)
+            data_len: 1,
+            data: [0x01, 0x00],
+        };
 
         assert_eq!(
-            reader.pop_ack(),
-            Some(ACKPacket {
-                command: Command::RamRead,
-                data_addr: Some(0x35),
-                data_len: Some(0x01),
-                data: Some(data_ramread),
-                error: None,
-                detail: Some(StatusDetail::MotorOnFlag),
-            })
-        );*/
+            reader.pop_ack().unwrap(),
+            ACKPacket {
+                psize: 0x0C,
+                pid: 0xFD,
+                cmd: Command::RamRead { data: data_ramread },
+                chk1: 0xA0,
+                chk2: 0x5E,
+                error: StatusError::OverloadDetected,
+                detail: StatusDetail::MotorOnFlag,
+            }
+        );
+    }
+
+    #[test]
+    fn test_sjog() {
+        let mut reader = ACKReader::new();
+
+        // Test de SJOG
+        // [H1][H2][psize][pid][cmd][chk1][chk2][status_error][status_detail]
+        let packet_sjog = [0xFF, 0xFF, 0x09, 0xFD, 0x46, 0xF2, 0x0C, 0x08, 0x08];
+
+        reader.parse(&packet_sjog);
+
+        assert_eq!(
+            reader.pop_ack().unwrap(),
+            ACKPacket {
+                psize: 0x09,
+                pid: 0xFD,
+                cmd: Command::SJog,
+                chk1: 0xF2,
+                chk2: 0x0C,
+                error: StatusError::InvalidPacket,
+                detail: StatusDetail::UnknownCommand,
+            }
+        );
     }
 }
