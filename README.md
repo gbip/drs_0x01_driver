@@ -1,3 +1,7 @@
+[![Latest version](https://img.shields.io/crates/v/drs-0x01.svg)](https://crates.io/crates/drs-0x01)
+[![Documentation](https://docs.rs/drs-0x01/badge.svg)](https://docs.rs/drs-0x01)
+[![dependency status](https://deps.rs/repo/github/gbip/drs_0x01_driver/status.svg)](https://deps.rs/repo/github/gbip/drs_0x01_driver)
+
  # [Documentation](https://docs.rs/drs-0x01/0.1.6/drs_0x01/)
  
  This crate provides basic functionnality to communicate with Herkulex DRS (both 0101 and 0201)
