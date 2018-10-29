@@ -1,8 +1,10 @@
 //! All the servomotor addresses mapped to some enums.
 
+use try_from::TryFrom;
+
 /// This enum represent all the RAM (volatile) memory adresses which can be read. I comes from the
 /// page 24 of the datasheet.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReadableRamAddr {
     /// Servo ID
     ID,
@@ -153,10 +155,17 @@ impl ReadableRamAddr {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RamReadData {
+    pub addr: ReadableRamAddr,
+    pub data_len: u8,
+    pub data: [u8; 2],
+}
+
 /// This enum represent all the RAM (volatile) memory addresses which can be written to. I comes
 /// from the page 24 of the
 /// datasheet.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WritableRamAddr {
     /// Servo ID
     ID(u8),
@@ -367,6 +376,61 @@ impl From<ReadableRamAddr> for u8 {
     }
 }
 
+impl TryFrom<u8> for ReadableRamAddr {
+    type Err = Error;
+    fn try_from(addr: u8) -> Result<ReadableRamAddr, Error> {
+        match addr {
+            0 => Ok(ReadableRamAddr::ID),
+            1 => Ok(ReadableRamAddr::AckPolicy),
+            2 => Ok(ReadableRamAddr::AlarmLEDPolicy),
+            3 => Ok(ReadableRamAddr::TorquePolicy),
+            5 => Ok(ReadableRamAddr::MaxTemperature),
+            6 => Ok(ReadableRamAddr::MinVoltage),
+            7 => Ok(ReadableRamAddr::MaxVoltage),
+            8 => Ok(ReadableRamAddr::AccelerationRatio),
+            9 => Ok(ReadableRamAddr::MaxAcceleration),
+            10 => Ok(ReadableRamAddr::DeadZone),
+            11 => Ok(ReadableRamAddr::SaturatorOffset),
+            12 => Ok(ReadableRamAddr::SaturatorSlope),
+            14 => Ok(ReadableRamAddr::PWMOffset),
+            15 => Ok(ReadableRamAddr::MinPWM),
+            16 => Ok(ReadableRamAddr::MaxPWM),
+            18 => Ok(ReadableRamAddr::OverloadPWMThreshold),
+            20 => Ok(ReadableRamAddr::MinPosition),
+            22 => Ok(ReadableRamAddr::MaxPosition),
+            24 => Ok(ReadableRamAddr::PositionKp),
+            26 => Ok(ReadableRamAddr::PositionKd),
+            28 => Ok(ReadableRamAddr::PositionKi),
+            30 => Ok(ReadableRamAddr::PositionFFFirstGain),
+            32 => Ok(ReadableRamAddr::PositionFFSecondGain),
+            38 => Ok(ReadableRamAddr::LedBlinkPeriod),
+            39 => Ok(ReadableRamAddr::ADCFaultDetectionPeriod),
+            40 => Ok(ReadableRamAddr::PacketGarbageDetectionPeriod),
+            41 => Ok(ReadableRamAddr::StopDetectionPeriod),
+            42 => Ok(ReadableRamAddr::OverloadDetectionPeriod),
+            43 => Ok(ReadableRamAddr::StopThreshold),
+            44 => Ok(ReadableRamAddr::InpositionMargin),
+            47 => Ok(ReadableRamAddr::CalibrationDifference),
+            48 => Ok(ReadableRamAddr::StatusError),
+            49 => Ok(ReadableRamAddr::StatusDetail),
+            52 => Ok(ReadableRamAddr::TorqueControl),
+            53 => Ok(ReadableRamAddr::LEDControl),
+            54 => Ok(ReadableRamAddr::Voltage),
+            55 => Ok(ReadableRamAddr::Temperature),
+            56 => Ok(ReadableRamAddr::CurrentControlMode),
+            57 => Ok(ReadableRamAddr::Tick),
+            58 => Ok(ReadableRamAddr::CalibratedPosition),
+            60 => Ok(ReadableRamAddr::AbsolutePosition),
+            62 => Ok(ReadableRamAddr::DifferentialPosition),
+            64 => Ok(ReadableRamAddr::PWM),
+            68 => Ok(ReadableRamAddr::AbsoluteGoalPosition),
+            70 => Ok(ReadableRamAddr::AbsoluteDesiredTrajectoryPosition),
+            72 => Ok(ReadableRamAddr::DesiredVelocity),
+            _ => Err(Error::InvalidAddress),
+        }
+    }
+}
+
 impl From<WritableRamAddr> for u8 {
     fn from(addr: WritableRamAddr) -> Self {
         use addr::WritableRamAddr::*;
@@ -409,10 +473,55 @@ impl From<WritableRamAddr> for u8 {
         }
     }
 }
+
+impl TryFrom<u8> for WritableRamAddr {
+    type Err = Error;
+    fn try_from(addr: u8) -> Result<WritableRamAddr, Error> {
+        match addr {
+            0 => Ok(WritableRamAddr::ID(0)),
+            1 => Ok(WritableRamAddr::AckPolicy(0)),
+            2 => Ok(WritableRamAddr::AlarmLEDPolicy(0)),
+            3 => Ok(WritableRamAddr::TorquePolicy(0)),
+            5 => Ok(WritableRamAddr::MaxTemperature(0)),
+            6 => Ok(WritableRamAddr::MinVoltage(0)),
+            7 => Ok(WritableRamAddr::MaxVoltage(0)),
+            8 => Ok(WritableRamAddr::AccelerationRatio(0)),
+            9 => Ok(WritableRamAddr::MaxAcceleration(0)),
+            10 => Ok(WritableRamAddr::DeadZone(0)),
+            11 => Ok(WritableRamAddr::SaturatorOffset(0)),
+            12 => Ok(WritableRamAddr::SaturatorSlope(0, 0)),
+            14 => Ok(WritableRamAddr::PWMOffset(0)),
+            15 => Ok(WritableRamAddr::MinPWM(0)),
+            16 => Ok(WritableRamAddr::MaxPWM(0, 0)),
+            18 => Ok(WritableRamAddr::OverloadPWMThreshold(0, 0)),
+            20 => Ok(WritableRamAddr::MinPosition(0, 0)),
+            22 => Ok(WritableRamAddr::MaxPosition(0, 0)),
+            24 => Ok(WritableRamAddr::PositionKp(0, 0)),
+            26 => Ok(WritableRamAddr::PositionKd(0, 0)),
+            28 => Ok(WritableRamAddr::PositionKi(0, 0)),
+            30 => Ok(WritableRamAddr::PositionFFFirstGain(0, 0)),
+            32 => Ok(WritableRamAddr::PositionFFSecondGain(0, 0)),
+            38 => Ok(WritableRamAddr::LedBlinkPeriod(0)),
+            39 => Ok(WritableRamAddr::ADCFaultDetectionPeriod(0)),
+            40 => Ok(WritableRamAddr::PacketGarbageDetectionPeriod(0)),
+            41 => Ok(WritableRamAddr::StopDetectionPeriod(0)),
+            42 => Ok(WritableRamAddr::OverloadDetectionPeriod(0)),
+            43 => Ok(WritableRamAddr::StopThreshold(0)),
+            44 => Ok(WritableRamAddr::InpositionMargin(0)),
+            47 => Ok(WritableRamAddr::CalibrationDifference(0)),
+            48 => Ok(WritableRamAddr::StatusError(0)),
+            49 => Ok(WritableRamAddr::StatusDetail(0)),
+            52 => Ok(WritableRamAddr::TorqueControl(0)),
+            53 => Ok(WritableRamAddr::LEDControl(0)),
+            _ => Err(Error::InvalidAddress),
+        }
+    }
+}
+
 /// This enum represent all the EPP (permanent) memory addresses which can be read. I comes from
 /// the page 21 of the
 /// datasheet.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReadableEEPAddr {
     /// DRS model number first byte
     ModelNo1,
@@ -488,6 +597,57 @@ pub enum ReadableEEPAddr {
     CalibrationDifference,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EEPReadData {
+    pub addr: ReadableEEPAddr,
+    pub data_len: u8,
+    pub data: [u8; 2],
+}
+
+impl ReadableEEPAddr {
+    /// Return the number of bytes associated with an address
+    pub fn bytes(&self) -> u8 {
+        match *self {
+            ReadableEEPAddr::ModelNo1 => 1,
+            ReadableEEPAddr::ModelNo2 => 1,
+            ReadableEEPAddr::Version1 => 1,
+            ReadableEEPAddr::Version2 => 1,
+            ReadableEEPAddr::BaudRate => 1,
+            ReadableEEPAddr::ID => 1,
+            ReadableEEPAddr::AckPolicy => 1,
+            ReadableEEPAddr::AlarmLEDPolicy => 1,
+            ReadableEEPAddr::TorquePolicy => 1,
+            ReadableEEPAddr::MaxTemperature => 1,
+            ReadableEEPAddr::MinVoltage => 1,
+            ReadableEEPAddr::MaxVoltage => 1,
+            ReadableEEPAddr::AccelerationRatio => 1,
+            ReadableEEPAddr::MaxAccelerationTime => 1,
+            ReadableEEPAddr::DeadZone => 1,
+            ReadableEEPAddr::SaturatorOffset => 1,
+            ReadableEEPAddr::SaturatorSlope => 2,
+            ReadableEEPAddr::PWMOffset => 1,
+            ReadableEEPAddr::MinPWM => 1,
+            ReadableEEPAddr::MaxPWM => 2,
+            ReadableEEPAddr::OverloadPWMThreshold => 2,
+            ReadableEEPAddr::MinPosition => 2,
+            ReadableEEPAddr::MaxPosition => 2,
+            ReadableEEPAddr::PositionKp => 2,
+            ReadableEEPAddr::PositionKd => 2,
+            ReadableEEPAddr::PositionKi => 2,
+            ReadableEEPAddr::PositionFFFirstGain => 2,
+            ReadableEEPAddr::PositionFFSecondGain => 2,
+            ReadableEEPAddr::LedBlinkPeriod => 1,
+            ReadableEEPAddr::ADCFaultCheckPeriod => 1,
+            ReadableEEPAddr::PacketGarbageDetectionPeriod => 1,
+            ReadableEEPAddr::StopDetectionPeriod => 1,
+            ReadableEEPAddr::OverloadDetectionPeriod => 1,
+            ReadableEEPAddr::StopThreshold => 1,
+            ReadableEEPAddr::InpositionMargin => 1,
+            ReadableEEPAddr::CalibrationDifference => 1,
+        }
+    }
+}
+
 impl From<ReadableEEPAddr> for u8 {
     fn from(me: ReadableEEPAddr) -> Self {
         match me {
@@ -531,7 +691,52 @@ impl From<ReadableEEPAddr> for u8 {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+impl TryFrom<u8> for ReadableEEPAddr {
+    type Err = Error;
+    fn try_from(addr: u8) -> Result<ReadableEEPAddr, Error> {
+        match addr {
+            0 => Ok(ReadableEEPAddr::ModelNo1),
+            1 => Ok(ReadableEEPAddr::ModelNo2),
+            2 => Ok(ReadableEEPAddr::Version1),
+            3 => Ok(ReadableEEPAddr::Version2),
+            4 => Ok(ReadableEEPAddr::BaudRate),
+            6 => Ok(ReadableEEPAddr::ID),
+            7 => Ok(ReadableEEPAddr::AckPolicy),
+            8 => Ok(ReadableEEPAddr::AlarmLEDPolicy),
+            9 => Ok(ReadableEEPAddr::TorquePolicy),
+            11 => Ok(ReadableEEPAddr::MaxTemperature),
+            12 => Ok(ReadableEEPAddr::MinVoltage),
+            13 => Ok(ReadableEEPAddr::MaxVoltage),
+            14 => Ok(ReadableEEPAddr::AccelerationRatio),
+            15 => Ok(ReadableEEPAddr::MaxAccelerationTime),
+            16 => Ok(ReadableEEPAddr::DeadZone),
+            17 => Ok(ReadableEEPAddr::SaturatorOffset),
+            18 => Ok(ReadableEEPAddr::SaturatorSlope),
+            20 => Ok(ReadableEEPAddr::PWMOffset),
+            21 => Ok(ReadableEEPAddr::MinPWM),
+            22 => Ok(ReadableEEPAddr::MaxPWM),
+            24 => Ok(ReadableEEPAddr::OverloadPWMThreshold),
+            26 => Ok(ReadableEEPAddr::MinPosition),
+            28 => Ok(ReadableEEPAddr::MaxPosition),
+            30 => Ok(ReadableEEPAddr::PositionKp),
+            32 => Ok(ReadableEEPAddr::PositionKd),
+            34 => Ok(ReadableEEPAddr::PositionKi),
+            36 => Ok(ReadableEEPAddr::PositionFFFirstGain),
+            38 => Ok(ReadableEEPAddr::PositionFFSecondGain),
+            44 => Ok(ReadableEEPAddr::LedBlinkPeriod),
+            45 => Ok(ReadableEEPAddr::ADCFaultCheckPeriod),
+            46 => Ok(ReadableEEPAddr::PacketGarbageDetectionPeriod),
+            47 => Ok(ReadableEEPAddr::StopDetectionPeriod),
+            48 => Ok(ReadableEEPAddr::OverloadDetectionPeriod),
+            49 => Ok(ReadableEEPAddr::StopThreshold),
+            50 => Ok(ReadableEEPAddr::InpositionMargin),
+            53 => Ok(ReadableEEPAddr::CalibrationDifference),
+            _ => Err(Error::InvalidAddress),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 /// This enum represent all the EPP (permanent) memory addresses which can be written to. I comes
 /// from the page 21 of the datasheet.
 pub enum WritableEEPAddr {
@@ -640,46 +845,47 @@ impl From<WritableEEPAddr> for u8 {
     }
 }
 
-impl ReadableEEPAddr {
-    /// Return the number of bytes associated with an address
-    pub fn bytes(&self) -> u8 {
-        match *self {
-            ReadableEEPAddr::ModelNo1 => 1,
-            ReadableEEPAddr::ModelNo2 => 1,
-            ReadableEEPAddr::Version1 => 1,
-            ReadableEEPAddr::Version2 => 1,
-            ReadableEEPAddr::BaudRate => 1,
-            ReadableEEPAddr::ID => 1,
-            ReadableEEPAddr::AckPolicy => 1,
-            ReadableEEPAddr::AlarmLEDPolicy => 1,
-            ReadableEEPAddr::TorquePolicy => 1,
-            ReadableEEPAddr::MaxTemperature => 1,
-            ReadableEEPAddr::MinVoltage => 1,
-            ReadableEEPAddr::MaxVoltage => 1,
-            ReadableEEPAddr::AccelerationRatio => 1,
-            ReadableEEPAddr::MaxAccelerationTime => 1,
-            ReadableEEPAddr::DeadZone => 1,
-            ReadableEEPAddr::SaturatorOffset => 1,
-            ReadableEEPAddr::SaturatorSlope => 2,
-            ReadableEEPAddr::PWMOffset => 1,
-            ReadableEEPAddr::MinPWM => 1,
-            ReadableEEPAddr::MaxPWM => 2,
-            ReadableEEPAddr::OverloadPWMThreshold => 2,
-            ReadableEEPAddr::MinPosition => 2,
-            ReadableEEPAddr::MaxPosition => 2,
-            ReadableEEPAddr::PositionKp => 2,
-            ReadableEEPAddr::PositionKd => 2,
-            ReadableEEPAddr::PositionKi => 2,
-            ReadableEEPAddr::PositionFFFirstGain => 2,
-            ReadableEEPAddr::PositionFFSecondGain => 2,
-            ReadableEEPAddr::LedBlinkPeriod => 1,
-            ReadableEEPAddr::ADCFaultCheckPeriod => 1,
-            ReadableEEPAddr::PacketGarbageDetectionPeriod => 1,
-            ReadableEEPAddr::StopDetectionPeriod => 1,
-            ReadableEEPAddr::OverloadDetectionPeriod => 1,
-            ReadableEEPAddr::StopThreshold => 1,
-            ReadableEEPAddr::InpositionMargin => 1,
-            ReadableEEPAddr::CalibrationDifference => 1,
+pub enum Error {
+    InvalidAddress,
+}
+
+impl TryFrom<u8> for WritableEEPAddr {
+    type Err = Error;
+    fn try_from(me: u8) -> Result<WritableEEPAddr, Error> {
+        match me {
+            4 => Ok(WritableEEPAddr::BaudRate(0)),
+            6 => Ok(WritableEEPAddr::ID(0)),
+            7 => Ok(WritableEEPAddr::AckPolicy(0)),
+            8 => Ok(WritableEEPAddr::AlarmLEDPolicy(0)),
+            9 => Ok(WritableEEPAddr::TorquePolicy(0)),
+            11 => Ok(WritableEEPAddr::MaxTemperature(0)),
+            12 => Ok(WritableEEPAddr::MinVoltage(0)),
+            13 => Ok(WritableEEPAddr::MaxVoltage(0)),
+            14 => Ok(WritableEEPAddr::AccelerationRatio(0)),
+            15 => Ok(WritableEEPAddr::MaxAccelerationTime(0)),
+            16 => Ok(WritableEEPAddr::DeadZone(0)),
+            17 => Ok(WritableEEPAddr::SaturatorOffset(0)),
+            18 => Ok(WritableEEPAddr::SaturatorSlope(0, 0)),
+            20 => Ok(WritableEEPAddr::PWMOffset(0)),
+            21 => Ok(WritableEEPAddr::MinPWM(0)),
+            22 => Ok(WritableEEPAddr::MaxPWM(0, 0)),
+            24 => Ok(WritableEEPAddr::OverloadPWMThreshold(0, 0)),
+            26 => Ok(WritableEEPAddr::MinPosition(0, 0)),
+            28 => Ok(WritableEEPAddr::MaxPosition(0, 0)),
+            30 => Ok(WritableEEPAddr::PositionKp(0, 0)),
+            32 => Ok(WritableEEPAddr::PositionKd(0, 0)),
+            34 => Ok(WritableEEPAddr::PositionKi(0, 0)),
+            36 => Ok(WritableEEPAddr::PositionFFFirstGain(0, 0)),
+            38 => Ok(WritableEEPAddr::PositionFFSecondGain(0, 0)),
+            44 => Ok(WritableEEPAddr::LedBlinkPeriod(0)),
+            45 => Ok(WritableEEPAddr::ADCFaultCheckPeriod(0)),
+            46 => Ok(WritableEEPAddr::PacketGarbageDetectionPeriod(0)),
+            47 => Ok(WritableEEPAddr::StopDetectionPeriod(0)),
+            48 => Ok(WritableEEPAddr::OverloadDetectionPeriod(0)),
+            49 => Ok(WritableEEPAddr::StopThreshold(0)),
+            50 => Ok(WritableEEPAddr::InpositionMargin(0)),
+            53 => Ok(WritableEEPAddr::CalibrationDifference(0)),
+            _ => Err(Error::InvalidAddress),
         }
     }
 }

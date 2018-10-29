@@ -18,3 +18,6 @@ version = "0.4.7"
 
 [dev-dependencies]
 docmatic = "0.1"
+
+[dependencies.try_from]
+version = "0.2.2"

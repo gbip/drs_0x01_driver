@@ -34,24 +34,27 @@
 //! ```
 
 #![no_std]
-#![deny(missing_docs)]
+//#![deny(missing_docs)]
 
 #[cfg(test)]
 #[macro_use]
 extern crate std;
 
 extern crate arrayvec;
+extern crate try_from;
 
 pub mod addr;
 mod builder;
 mod message;
+mod reader;
 mod servo;
 
 /// Advanced data types for experimented users knowing the datasheet.
 pub mod advanced {
-    pub use builder::{HerkulexMessage, MessageBuilder, MessageBuilderCmd, MessageBuilderError,
-                      MessageBuilderPositionIJOG, MessageBuilderPositionSJOG,
-                      MessageBuilderSpecial};
+    pub use builder::{
+        HerkulexMessage, MessageBuilder, MessageBuilderCmd, MessageBuilderError,
+        MessageBuilderPositionIJOG, MessageBuilderPositionSJOG, MessageBuilderSpecial,
+    };
 }
 
 /// Easy to use functions for a quickstart.
