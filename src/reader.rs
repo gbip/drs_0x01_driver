@@ -318,9 +318,7 @@ impl ReaderState {
                 pid,
                 cmd,
                 chk1,
-            }
-                if (cmd == EEPRead || cmd == RamRead) =>
-            {
+            } if (cmd == EEPRead || cmd == RamRead) => {
                 *self = DataAddr {
                     size: size,
                     pid: pid,
@@ -717,7 +715,7 @@ impl ACKReader {
     }
 
     // Renvoi le premier ACKPacket du buffer
-    pub fn pop_ack(&mut self) -> Option<ACKPacket> {
+    pub fn pop_ack_packet(&mut self) -> Option<ACKPacket> {
         self.buffer.pop()
     }
 
@@ -760,7 +758,7 @@ mod test {
         };
 
         assert_eq!(
-            reader.pop_ack().unwrap(),
+            reader.pop_ack_packet().unwrap(),
             ACKPacket {
                 psize: 0x0F,
                 pid: 0xFD,
@@ -792,7 +790,7 @@ mod test {
         };
 
         assert_eq!(
-            reader.pop_ack().unwrap(),
+            reader.pop_ack_packet().unwrap(),
             ACKPacket {
                 psize: 0x0C,
                 pid: 0xFD,
@@ -811,18 +809,20 @@ mod test {
 
         // Test de SJOG
         // [H1][H2][psize][pid][cmd][chk1][chk2][status_error][status_detail]
-        let packet_sjog = [0xFF, 0xFF, 0x09, 0xFD, 0x46, 0xF2, 0x0C, 0x08, 0x08];
+        let packet_sjog = [
+            0xFF, 0xFF, 0x09, 0xFD, 0x46, /*0xF2*/ 0xB2, /*0x0C*/ 0x4C, 0x08, 0x08,
+        ];
 
         reader.parse(&packet_sjog);
 
         assert_eq!(
-            reader.pop_ack().unwrap(),
+            reader.pop_ack_packet().unwrap(),
             ACKPacket {
                 psize: 0x09,
                 pid: 0xFD,
                 cmd: Command::SJog,
-                chk1: 0xF2,
-                chk2: 0x0C,
+                chk1: /*0xF2*/ 0xB2,
+                chk2: /*0x0C*/ 0x4C,
                 error: StatusError::InvalidPacket,
                 detail: StatusDetail::UnknownCommand,
             }

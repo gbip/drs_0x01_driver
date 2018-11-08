@@ -55,7 +55,8 @@ impl Servo {
                 },
                 JogColor::Blue,
                 self.id,
-            ).build()
+            )
+            .build()
     }
 
     /// Request the servo to have a certain speed.
@@ -68,7 +69,8 @@ impl Servo {
                 },
                 JogColor::Blue,
                 self.id,
-            ).build()
+            )
+            .build()
     }
 
     /// Request the servo to send it's status.
