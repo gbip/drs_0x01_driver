@@ -46,7 +46,7 @@ extern crate try_from;
 pub mod addr;
 mod builder;
 mod message;
-mod reader;
+pub mod reader;
 mod servo;
 
 /// Advanced data types for experimented users knowing the datasheet.

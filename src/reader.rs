@@ -154,8 +154,8 @@ enum AssociatedData {
     Nothing,
 }
 
-struct ACKReader {
-    pub(crate) state: ReaderState,
+pub struct ACKReader {
+    state: ReaderState,
     buffer: ArrayVec<[ACKPacket; TRAME_READER_INTERNAL_BUFFER_SIZE]>,
 }
 
@@ -706,7 +706,7 @@ impl ReaderState {
 }
 
 impl ACKReader {
-    // Creation d'un ACKReader a l'état H1 et avec un buffer vide
+    /// Creates a new state machine to read incoming Herkulex messages
     pub fn new() -> ACKReader {
         ACKReader {
             state: ReaderState::H1,
@@ -714,17 +714,17 @@ impl ACKReader {
         }
     }
 
-    // Renvoi le premier ACKPacket du buffer
+    /// Return the oldest [ACKPacket] read
     pub fn pop_ack_packet(&mut self) -> Option<ACKPacket> {
         self.buffer.pop()
     }
 
-    // Renvoi la taille du buffer
-    pub fn get_buffer_size(&mut self) -> usize {
+    /// Get the number of available messages in the internal buffer
+    pub fn available_messages(&mut self) -> usize {
         self.buffer.len()
     }
 
-    // Lit les octetc de l'ACK un par un
+    /// Parse a buffer of bytes, adding sucessfully decoded  messages to the internal buffer
     pub fn parse(&mut self, buf: &[u8]) {
         for byte in buf {
             if let Some(trame) = self.state.step(*byte) {
