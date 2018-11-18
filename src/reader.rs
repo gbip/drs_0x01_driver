@@ -111,9 +111,9 @@ impl From<Command> for u8 {
         use reader::Command::*;
         match cmd {
             EEPWrite => 0x41,
-            EEPRead { data: _ } => 0x42,
+            EEPRead { .. } => 0x42,
             RamWrite => 0x43,
-            RamRead { data: _ } => 0x44,
+            RamRead { .. } => 0x44,
             IJog => 0x45,
             SJog => 0x46,
             Stat => 0x47,
@@ -157,6 +157,15 @@ enum AssociatedData {
 pub struct ACKReader {
     state: ReaderState,
     buffer: ArrayVec<[ACKPacket; TRAME_READER_INTERNAL_BUFFER_SIZE]>,
+}
+
+impl Default for ACKReader {
+    fn default() -> ACKReader {
+        ACKReader {
+            state: ReaderState::H1,
+            buffer: ArrayVec::new(),
+        }
+    }
 }
 
 // Structure permettant de gérer la machine à états
@@ -277,12 +286,7 @@ impl ReaderState {
             H1 => *self = H2,
             H2 => *self = Psize,
             Psize => *self = Pid { size: byte },
-            Pid { size } => {
-                *self = Cmd {
-                    size: size,
-                    pid: byte,
-                }
-            }
+            Pid { size } => *self = Cmd { size, pid: byte },
             Cmd { size, pid } => {
                 let mut command: Option<InternalCommand> = None;
                 match byte {
@@ -299,17 +303,17 @@ impl ReaderState {
                 }
                 if let Some(command) = command {
                     *self = Checksum1 {
-                        size: size,
-                        pid: pid,
+                        size,
+                        pid,
                         cmd: command,
                     }
                 }
             }
             Checksum1 { size, pid, cmd } => {
                 *self = Checksum2 {
-                    size: size,
-                    pid: pid,
-                    cmd: cmd,
+                    size,
+                    pid,
+                    cmd,
                     chk1: byte,
                 }
             }
@@ -318,12 +322,14 @@ impl ReaderState {
                 pid,
                 cmd,
                 chk1,
-            } if (cmd == EEPRead || cmd == RamRead) => {
+            }
+                if (cmd == EEPRead || cmd == RamRead) =>
+            {
                 *self = DataAddr {
-                    size: size,
-                    pid: pid,
-                    cmd: cmd,
-                    chk1: chk1,
+                    size,
+                    pid,
+                    cmd,
+                    chk1,
                     chk2: byte,
                 }
             }
@@ -334,10 +340,10 @@ impl ReaderState {
                 chk1,
             } => {
                 *self = Error {
-                    size: size,
-                    pid: pid,
-                    cmd: cmd,
-                    chk1: chk1,
+                    size,
+                    pid,
+                    cmd,
+                    chk1,
                     chk2: byte,
                     payload: Nothing,
                 }
@@ -352,11 +358,11 @@ impl ReaderState {
                 EEPRead => {
                     *self = match TryFrom::try_from(byte) {
                         Ok(data_addr) => DataLenEEP {
-                            size: size,
-                            pid: pid,
-                            cmd: cmd,
-                            chk1: chk1,
-                            chk2: chk2,
+                            size,
+                            pid,
+                            cmd,
+                            chk1,
+                            chk2,
                             data: EEPReadData {
                                 addr: data_addr,
                                 data_len: 0,
@@ -369,11 +375,11 @@ impl ReaderState {
                 RamRead => {
                     *self = match TryFrom::try_from(byte) {
                         Ok(data_addr) => DataLenRAM {
-                            size: size,
-                            pid: pid,
-                            cmd: cmd,
-                            chk1: chk1,
-                            chk2: chk2,
+                            size,
+                            pid,
+                            cmd,
+                            chk1,
+                            chk2,
                             data: RamReadData {
                                 addr: data_addr,
                                 data_len: 0,
@@ -399,11 +405,11 @@ impl ReaderState {
                     data: [0, 0],
                 };
                 *self = Data1EEP {
-                    size: size,
-                    pid: pid,
-                    cmd: cmd,
-                    chk1: chk1,
-                    chk2: chk2,
+                    size,
+                    pid,
+                    cmd,
+                    chk1,
+                    chk2,
                     data: new_data,
                 };
             }
@@ -421,21 +427,21 @@ impl ReaderState {
                     data: [0, 0],
                 };
                 *self = Data1RAM {
-                    size: size,
-                    pid: pid,
-                    cmd: cmd,
-                    chk1: chk1,
-                    chk2: chk2,
+                    size,
+                    pid,
+                    cmd,
+                    chk1,
+                    chk2,
                     data: new_data,
                 }
             }
             Data1EEP {
                 size,
                 pid,
-                cmd: _,
                 chk1,
                 chk2,
                 data,
+                ..
             } => {
                 let new_data = EEPReadData {
                     addr: data.addr,
@@ -444,20 +450,20 @@ impl ReaderState {
                 };
                 if data.data_len == 2 {
                     *self = Data2EEP {
-                        size: size,
-                        pid: pid,
+                        size,
+                        pid,
                         cmd: InternalCommand::EEPRead,
-                        chk1: chk1,
-                        chk2: chk2,
+                        chk1,
+                        chk2,
                         data: new_data,
                     }
                 } else {
                     *self = Error {
-                        size: size,
-                        pid: pid,
+                        size,
+                        pid,
                         cmd: InternalCommand::EEPRead,
-                        chk1: chk1,
-                        chk2: chk2,
+                        chk1,
+                        chk2,
                         payload: AssociatedData::EEP(new_data),
                     }
                 }
@@ -476,21 +482,21 @@ impl ReaderState {
                     data: [data.data[0], byte],
                 };
                 *self = Error {
-                    size: size,
-                    pid: pid,
-                    cmd: cmd,
-                    chk1: chk1,
-                    chk2: chk2,
+                    size,
+                    pid,
+                    cmd,
+                    chk1,
+                    chk2,
                     payload: AssociatedData::EEP(new_data),
                 }
             }
             Data1RAM {
                 size,
                 pid,
-                cmd: _,
                 chk1,
                 chk2,
                 data,
+                ..
             } => {
                 let new_data = RamReadData {
                     addr: data.addr,
@@ -499,20 +505,20 @@ impl ReaderState {
                 };
                 if data.data_len == 2 {
                     *self = Data2RAM {
-                        size: size,
-                        pid: pid,
+                        size,
+                        pid,
                         cmd: InternalCommand::RamRead,
-                        chk1: chk1,
-                        chk2: chk2,
+                        chk1,
+                        chk2,
                         data: new_data,
                     }
                 } else {
                     *self = Error {
-                        size: size,
-                        pid: pid,
+                        size,
+                        pid,
                         cmd: InternalCommand::RamRead,
-                        chk1: chk1,
-                        chk2: chk2,
+                        chk1,
+                        chk2,
                         payload: AssociatedData::Ram(new_data),
                     }
                 }
@@ -531,11 +537,11 @@ impl ReaderState {
                     data: [data.data[0], byte],
                 };
                 *self = Error {
-                    size: size,
-                    pid: pid,
-                    cmd: cmd,
-                    chk1: chk1,
-                    chk2: chk2,
+                    size,
+                    pid,
+                    cmd,
+                    chk1,
+                    chk2,
                     payload: AssociatedData::Ram(new_data),
                 }
             }
@@ -546,97 +552,32 @@ impl ReaderState {
                 chk1,
                 chk2,
                 payload,
-            } => match byte {
-                0x00 => {
+            } => {
+                let status_error = match byte {
+                    0x00 => Some(NoError),
+                    0x01 => Some(ExceedInputVoltageLimit),
+                    0x02 => Some(ExceedAllowedPOTLimit),
+                    0x04 => Some(ExceedTemperatureLimit),
+                    0x08 => Some(InvalidPacket),
+                    0x10 => Some(OverloadDetected),
+                    0x20 => Some(DriverFaultDetected),
+                    0x40 => Some(EEPREGDistorded),
+                    _ => None,
+                };
+                if let Some(valid_error) = status_error {
                     *self = Detail {
-                        size: size,
-                        pid: pid,
-                        cmd: cmd,
-                        chk1: chk1,
-                        chk2: chk2,
-                        payload: payload,
-                        status_error: NoError,
-                    }
+                        size,
+                        pid,
+                        cmd,
+                        chk1,
+                        chk2,
+                        payload,
+                        status_error: valid_error,
+                    };
+                } else {
+                    *self = H1;
                 }
-                0x01 => {
-                    *self = Detail {
-                        size: size,
-                        pid: pid,
-                        cmd: cmd,
-                        chk1: chk1,
-                        chk2: chk2,
-                        payload: payload,
-                        status_error: ExceedInputVoltageLimit,
-                    }
-                }
-                0x02 => {
-                    *self = Detail {
-                        size: size,
-                        pid: pid,
-                        cmd: cmd,
-                        chk1: chk1,
-                        chk2: chk2,
-                        payload: payload,
-                        status_error: ExceedAllowedPOTLimit,
-                    }
-                }
-                0x04 => {
-                    *self = Detail {
-                        size: size,
-                        pid: pid,
-                        cmd: cmd,
-                        chk1: chk1,
-                        chk2: chk2,
-                        payload: payload,
-                        status_error: ExceedTemperatureLimit,
-                    }
-                }
-                0x08 => {
-                    *self = Detail {
-                        size: size,
-                        pid: pid,
-                        cmd: cmd,
-                        chk1: chk1,
-                        chk2: chk2,
-                        payload: payload,
-                        status_error: InvalidPacket,
-                    }
-                }
-                0x10 => {
-                    *self = Detail {
-                        size: size,
-                        pid: pid,
-                        cmd: cmd,
-                        chk1: chk1,
-                        chk2: chk2,
-                        payload: payload,
-                        status_error: OverloadDetected,
-                    }
-                }
-                0x20 => {
-                    *self = Detail {
-                        size: size,
-                        pid: pid,
-                        cmd: cmd,
-                        chk1: chk1,
-                        chk2: chk2,
-                        payload: payload,
-                        status_error: DriverFaultDetected,
-                    }
-                }
-                0x40 => {
-                    *self = Detail {
-                        size: size,
-                        pid: pid,
-                        cmd: cmd,
-                        chk1: chk1,
-                        chk2: chk2,
-                        payload: payload,
-                        status_error: EEPREGDistorded,
-                    }
-                }
-                _ => *self = H1,
-            },
+            }
             Detail {
                 size,
                 pid,
@@ -690,10 +631,10 @@ impl ReaderState {
         let cmd = cmd.inject_payload(payload);
         let packet = ACKPacket {
             psize: size,
-            pid: pid,
-            cmd: cmd,
-            chk1: chk1,
-            chk2: chk2,
+            pid,
+            cmd,
+            chk1,
+            chk2,
             error: status_error,
             detail: status_detail,
         };

@@ -35,18 +35,18 @@ impl Servo {
     }
 
     /// Return the servo ID.
-    pub fn id(&self) -> u8 {
+    pub fn id(self) -> u8 {
         self.id
     }
 
     /// Create a reboot message requesting the servo to reboot.
     /// During the reboot all changes applied to the EEP memory will take effect.
-    pub fn reboot(&self) -> HerkulexMessage {
+    pub fn reboot(self) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id).reboot().build()
     }
 
     /// Request the servo to go to a position.
-    pub fn set_position(&self, position: u16) -> HerkulexMessage {
+    pub fn set_position(self, position: u16) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .s_jog(
                 60,
@@ -55,12 +55,11 @@ impl Servo {
                 },
                 JogColor::Blue,
                 self.id,
-            )
-            .build()
+            ).build()
     }
 
     /// Request the servo to have a certain speed.
-    pub fn set_speed(&self, speed: u16) -> HerkulexMessage {
+    pub fn set_speed(self, speed: u16) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .s_jog(
                 60,
@@ -69,58 +68,57 @@ impl Servo {
                 },
                 JogColor::Blue,
                 self.id,
-            )
-            .build()
+            ).build()
     }
 
     /// Request the servo to send it's status.
-    pub fn stat(&self) -> HerkulexMessage {
+    pub fn stat(self) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id).stat().build()
     }
 
     /// Write to the volatile RAM of the servo.
     /// Ram is cleared on every reboot, and populated with data from the EEP memory.
-    pub fn ram_write(&self, addr: WritableRamAddr) -> HerkulexMessage {
+    pub fn ram_write(self, addr: WritableRamAddr) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id).write_ram(addr).build()
     }
 
     /// Write to the permanent EEP memory.
     /// For the change to take effect you need to reboot the servo so that the values are loaded
     /// in RAM.
-    pub fn eep_write(&self, addr: WritableEEPAddr) -> HerkulexMessage {
+    pub fn eep_write(self, addr: WritableEEPAddr) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id).write_eep(addr).build()
     }
 
     /// Request the servo to send back some data from RAM.
-    pub fn ram_request(&self, addr: ReadableRamAddr) -> HerkulexMessage {
+    pub fn ram_request(self, addr: ReadableRamAddr) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .read_ram(addr, addr.bytes())
             .build()
     }
 
     /// Request the servo to send back some data from EEP.
-    pub fn eep_request(&self, addr: ReadableEEPAddr) -> HerkulexMessage {
+    pub fn eep_request(self, addr: ReadableEEPAddr) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .read_eep(addr, addr.bytes())
             .build()
     }
 
     /// Request the servo to enable torque.
-    pub fn enable_torque(&self) -> HerkulexMessage {
+    pub fn enable_torque(self) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .write_ram(WritableRamAddr::TorqueControl(0x60))
             .build()
     }
 
     /// Request the servo to disable torque.
-    pub fn disable_torque(&self) -> HerkulexMessage {
+    pub fn disable_torque(self) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .write_ram(WritableRamAddr::TorqueControl(0))
             .build()
     }
 
     /// Clear the error register of the servo.
-    pub fn clear_errors(&self) -> HerkulexMessage {
+    pub fn clear_errors(self) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .write_ram(WritableRamAddr::StatusError(0))
             .build()

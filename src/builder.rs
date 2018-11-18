@@ -41,7 +41,7 @@ impl Packet {
             result.push(self.data[i]);
             checksum1 ^= self.data[i];
         }
-        checksum1 = checksum1 & 0xFE;
+        checksum1 &= 0xFE;
         let checksum2: u8 = (!checksum1) & 0xFE;
         result.insert(5, checksum1);
         result.insert(6, checksum2);
@@ -58,6 +58,7 @@ impl Packet {
 pub type HerkulexMessage = ArrayVec<[u8; 128]>;
 
 /// This struct allows you to build message to directly speak to the herkulex servomotors.
+#[derive(Default)]
 pub struct MessageBuilder {}
 
 /// This is a specialized version of the [`MessageBuilder`](struct.MessageBuilder.html) which
@@ -200,7 +201,7 @@ impl MessageBuilderCmd {
         };
         MessageBuilderSpecial {
             pid: self.pid,
-            kind: kind,
+            kind,
         }
     }
 
@@ -231,7 +232,7 @@ impl MessageBuilderCmd {
             pid: self.pid,
             pos: SJogRequest {
                 data: ArrayVec::new(),
-                playtime: playtime,
+                playtime,
             },
         };
         result.pos.data.push(SJogData::new(mode, color, id));
@@ -321,24 +322,19 @@ impl MessageBuilderSpecial {
     pub fn build(self) -> HerkulexMessage {
         let cmd = match self.kind {
             SpecialRequest::Stat => 0x07,
-            SpecialRequest::Rollback {
-                skip_id: _,
-                skip_baud: _,
-            } => 0x08,
+            SpecialRequest::Rollback { .. } => 0x08,
             SpecialRequest::Reboot => 0x09,
         };
         let mut packet = Packet::default();
         packet.pid = self.pid;
         packet.cmd = cmd;
-        match self.kind {
-            SpecialRequest::Rollback {
-                skip_id: id_bit,
-                skip_baud: baud_bit,
-            } => {
-                packet.push_data(id_bit);
-                packet.push_data(baud_bit);
-            }
-            _ => {}
+        if let SpecialRequest::Rollback {
+            skip_id: id_bit,
+            skip_baud: baud_bit,
+        } = self.kind
+        {
+            packet.push_data(id_bit);
+            packet.push_data(baud_bit);
         }
         packet.build()
     }
@@ -385,13 +381,13 @@ impl MessageBuilderPositionSJOG {
 
             let mut set: u8 = 0;
             match data.mode {
-                JogMode::Normal { .. } => set |= 0b00000000,
-                JogMode::Continuous { .. } => set |= 0b00000010,
+                JogMode::Normal { .. } => set |= 0b0000_0000,
+                JogMode::Continuous { .. } => set |= 0b0000_0010,
             }
             match data.color {
-                JogColor::Blue => set |= 0b00001000,
-                JogColor::Green => set |= 0b00000100,
-                JogColor::Red => set |= 0b00010000,
+                JogColor::Blue => set |= 0b0000_1000,
+                JogColor::Green => set |= 0b0000_0100,
+                JogColor::Red => set |= 0b0001_0000,
             }
             packet.push_data(set);
             packet.push_data(data.id);
@@ -440,13 +436,13 @@ impl MessageBuilderPositionIJOG {
 
             let mut set: u8 = 0;
             match data.mode {
-                JogMode::Normal { .. } => set |= 0b00000000,
-                JogMode::Continuous { .. } => set |= 0b00000010,
+                JogMode::Normal { .. } => set |= 0b0000_0000,
+                JogMode::Continuous { .. } => set |= 0b0000_0010,
             }
             match data.color {
-                JogColor::Blue => set |= 0b00001000,
-                JogColor::Green => set |= 0b00000100,
-                JogColor::Red => set |= 0b00010000,
+                JogColor::Blue => set |= 0b0000_1000,
+                JogColor::Green => set |= 0b0000_0100,
+                JogColor::Red => set |= 0b0001_0000,
             }
             packet.push_data(set);
             packet.push_data(data.id);

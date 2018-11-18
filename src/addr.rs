@@ -103,8 +103,8 @@ pub enum ReadableRamAddr {
 
 impl ReadableRamAddr {
     /// Return the size in bytes of the value stocked at this address
-    pub fn bytes(&self) -> u8 {
-        match *self {
+    pub fn bytes(self) -> u8 {
+        match self {
             ReadableRamAddr::ID => 1,
             ReadableRamAddr::AckPolicy => 1,
             ReadableRamAddr::AlarmLEDPolicy => 1,
@@ -241,8 +241,8 @@ pub enum WritableRamAddr {
 
 impl WritableRamAddr {
     /// Return the size in bytes of the value stocked at this address
-    pub fn bytes(&self) -> u8 {
-        match *self {
+    pub fn bytes(self) -> u8 {
+        match self {
             WritableRamAddr::ID(_) => 1,
             WritableRamAddr::AckPolicy(_) => 1,
             WritableRamAddr::AlarmLEDPolicy(_) => 1,
@@ -606,8 +606,8 @@ pub struct EEPReadData {
 
 impl ReadableEEPAddr {
     /// Return the number of bytes associated with an address
-    pub fn bytes(&self) -> u8 {
-        match *self {
+    pub fn bytes(self) -> u8 {
+        match self {
             ReadableEEPAddr::ModelNo1 => 1,
             ReadableEEPAddr::ModelNo2 => 1,
             ReadableEEPAddr::Version1 => 1,
@@ -892,8 +892,8 @@ impl TryFrom<u8> for WritableEEPAddr {
 
 impl WritableEEPAddr {
     /// Return the number of bytes associated with an address
-    pub fn bytes(&self) -> u8 {
-        match *self {
+    pub fn bytes(self) -> u8 {
+        match self {
             WritableEEPAddr::BaudRate(_) => 1,
             WritableEEPAddr::ID(_) => 1,
             WritableEEPAddr::AckPolicy(_) => 1,

@@ -26,6 +26,7 @@ pub enum SpecialRequest {
     Reboot,
 }
 
+#[derive(Clone, Copy)]
 pub enum Rollback {
     SkipId,
     SkipBaud,
