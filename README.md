@@ -9,9 +9,10 @@
  It is heavily based on the documentation published by Dongbu Robot which is available
  [`here`](http://www.sgbotic.com/products/datasheets/robotics/herkulexeng.pdf).
 
- # Examples
+# Examples
 
-The best way to use this library is to use the Servo struct.
+## Sending data
+The best way to use this library to send data to the servomotor is to use the Servo struct.
 For example, this how you can set a servomotor (id : 0x40) into continuous rotation.
 
 ```rust
@@ -68,3 +69,10 @@ fn main() {
     let message = MessageBuilder::new_with_id(35).write_ram(TorqueControl(1)).build();
  }
  ```
+ 
+ ## Receiving Data
+ 
+ You can easily parse incoming bytes and transform them into [ACKPacket](https://docs.rs/drs-0x01/latest/drs_0x01/reader/struct.ACKPacket.html) 
+ by using an [ACKReader](https://docs.rs/drs-0x01/latest/drs_0x01/reader/struct.ACKReader.html).
+ 
+ See the `examples` folder for a code snippet.
