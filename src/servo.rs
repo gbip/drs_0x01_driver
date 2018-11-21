@@ -6,7 +6,7 @@ use addr::*;
 
 use core::cmp::min;
 
-/// This struct allows you to quickly build messages for a servomotor.
+/// This struct allows you to build messages for a servomotor.
 #[derive(Copy, Clone, Debug)]
 pub struct Servo {
     id: u8,
@@ -46,6 +46,8 @@ impl Servo {
     }
 
     /// Request the servo to go to a position.
+    /// The value can be between 0 and 1023 but should be between 21 and 1002 if you don't want
+    /// the servomotor fo go in error mode.
     pub fn set_position(self, position: u16) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .s_jog(
@@ -59,6 +61,7 @@ impl Servo {
     }
 
     /// Request the servo to have a certain speed.
+    /// The value should be between 0 and 1023.
     pub fn set_speed(self, speed: u16) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .s_jog(

@@ -9,7 +9,7 @@
 //!
 //! ```
 //! # extern crate drs_0x01;
-//! use drs_0x01::prelude::*;
+//! use drs_0x01::*;
 //!
 //! let servo = Servo::new(0x40);
 //! let message = servo.set_speed(512);
@@ -19,7 +19,7 @@
 //!
 //! ```
 //! # extern crate drs_0x01;
-//! use drs_0x01::advanced::MessageBuilder;
+//! use drs_0x01::builder::MessageBuilder;
 //! // 0xFE is the broadcast ID
 //! let message = MessageBuilder::new().id(0xFE).reboot().build();
 //! ```
@@ -28,13 +28,13 @@
 //!
 //! ```
 //! # extern crate drs_0x01;
-//! use drs_0x01::advanced::MessageBuilder;
-//! use drs_0x01::addr::WritableRamAddr::TorqueControl;
+//! use drs_0x01::builder::MessageBuilder;
+//! use drs_0x01::WritableRamAddr::TorqueControl;
 //! let message = MessageBuilder::new_with_id(35).write_ram(TorqueControl(1)).build();
 //! ```
 
 #![no_std]
-//#![deny(missing_docs)]
+#![warn(missing_docs)]
 
 #[cfg(test)]
 #[macro_use]
@@ -44,21 +44,14 @@ extern crate arrayvec;
 extern crate try_from;
 
 pub mod addr;
-mod builder;
+/// A module which implement the builder pattern to create advanced messages
+pub mod builder;
 mod message;
+/// A module which contains a Finite State Machine to transform bytes read form the servomotor
+/// into `[ACKPacket]s`
 pub mod reader;
 mod servo;
 
-/// Advanced data types for experimented users knowing the datasheet.
-pub mod advanced {
-    pub use builder::{
-        HerkulexMessage, MessageBuilder, MessageBuilderCmd, MessageBuilderError,
-        MessageBuilderPositionIJOG, MessageBuilderPositionSJOG, MessageBuilderSpecial,
-    };
-}
-
-/// Easy to use functions for a quickstart.
-pub mod prelude {
-    pub use message::{JogColor, JogMode};
-    pub use servo::Servo;
-}
+pub use addr::{ReadableEEPAddr, ReadableRamAddr, WritableEEPAddr, WritableRamAddr};
+pub use message::{JogColor, JogMode};
+pub use servo::Servo;

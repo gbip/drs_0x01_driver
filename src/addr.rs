@@ -155,10 +155,14 @@ impl ReadableRamAddr {
     }
 }
 
+/// Data read from a servomotor
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RamReadData {
+    /// The addr from which the data was read
     pub addr: ReadableRamAddr,
+    /// The number of data read at this address
     pub data_len: u8,
+    /// The data read
     pub data: [u8; 2],
 }
 
@@ -597,10 +601,14 @@ pub enum ReadableEEPAddr {
     CalibrationDifference,
 }
 
+/// The data read from the EEP memory of the servomotor
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EEPReadData {
+    /// The address from which the data was read
     pub addr: ReadableEEPAddr,
+    /// The size of the data read
     pub data_len: u8,
+    /// The data read
     pub data: [u8; 2],
 }
 
@@ -845,7 +853,9 @@ impl From<WritableEEPAddr> for u8 {
     }
 }
 
+/// The conversion error when converting u8 to addresses.
 pub enum Error {
+    /// This integer does not map to a valid error
     InvalidAddress,
 }
 

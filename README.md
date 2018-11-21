@@ -16,7 +16,7 @@ For example, this how you can set a servomotor (id : 0x40) into continuous rotat
 
 ```rust
 extern crate drs_0x01;
-use drs_0x01::prelude::Servo;
+use drs_0x01::Servo;
 
 fn main() {
     let servo = Servo::new(0x40);
@@ -32,8 +32,8 @@ changed the color from blue to red to show how those types give more control.
 
 ```rust
 extern crate drs_0x01;
-use drs_0x01::prelude::*;
-use drs_0x01::advanced::MessageBuilder;
+use drs_0x01::*;
+use drs_0x01::builder::MessageBuilder;
 
 fn main() {
     let message = MessageBuilder::new().id(0x40).s_jog(/* Playtime : datasheet value : */ 60, 
@@ -51,7 +51,7 @@ fn main() {
 
  ```rust
  extern crate drs_0x01;
- use drs_0x01::advanced::MessageBuilder;
+ use drs_0x01::builder::MessageBuilder;
  
  fn main () {
     let message = MessageBuilder::new().id(0xFE).reboot().build();  // 0xFE is the broadcast ID
@@ -62,8 +62,8 @@ fn main() {
 
  ```rust
  extern crate drs_0x01;
- use drs_0x01::advanced::MessageBuilder;
- use drs_0x01::addr::WritableRamAddr::TorqueControl;
+ use drs_0x01::builder::MessageBuilder;
+ use drs_0x01::WritableRamAddr::TorqueControl;
  fn main() {
     let message = MessageBuilder::new_with_id(35).write_ram(TorqueControl(1)).build();
  }

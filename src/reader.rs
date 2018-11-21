@@ -8,20 +8,52 @@ use addr::RamReadData;
 use addr::WritableEEPAddr;
 use addr::WritableRamAddr;
 
+/// The size of the internal buffer of `ACKReader` where `ACKPacket` are stored when parsing data.
 pub const TRAME_READER_INTERNAL_BUFFER_SIZE: usize = 64;
 
+/// An `ACKPacket` is a message sent by the servomotor and received by an `AckReader`.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ACKPacket {
-    psize: u8,
-    pid: u8,
-    cmd: Command,
-    chk1: u8,
-    chk2: u8,
-    error: StatusError,
-    detail: StatusDetail,
+    /// The ID of the servomotor who sent this packet
+    pub pid: u8,
+    /// The command of the packet
+    pub cmd: Command,
+    /// Status Error register content
+    pub error: StatusError,
+    /// Status Error register detail
+    pub detail: StatusDetail,
 }
 
-impl ACKPacket {
+impl From<RawACKPacket> for ACKPacket {
+    fn from(packet: RawACKPacket) -> ACKPacket {
+        ACKPacket {
+            pid: packet.pid,
+            cmd: packet.cmd,
+            error: packet.error,
+            detail: packet.detail,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct RawACKPacket {
+    /// The size of the packet
+    pub psize: u8,
+    /// The ID of the servomotor who sent this packet
+    pub pid: u8,
+    /// The command of the packet
+    pub cmd: Command,
+    /// The checksum1 of the packet
+    pub chk1: u8,
+    /// The checksum2 of the packet
+    pub chk2: u8,
+    /// Status Error register content
+    pub error: StatusError,
+    /// Status Error register detail
+    pub detail: StatusDetail,
+}
+
+impl RawACKPacket {
     pub fn is_valid(&self) -> bool {
         use addr::ReadableEEPAddr;
         use addr::ReadableRamAddr;
@@ -56,22 +88,38 @@ impl ACKPacket {
     }
 }
 
-impl Into<Command> for ACKPacket {
+impl Into<Command> for RawACKPacket {
     fn into(self) -> Command {
         self.cmd
     }
 }
 
+/// The kind of command the servomotor is answering to.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Command {
+    /// EEPWrite command
     EEPWrite,
-    EEPRead { data: EEPReadData },
+    /// EEPRead command
+    EEPRead {
+        /// The data read
+        data: EEPReadData,
+    },
+    /// RamWrite command
     RamWrite,
-    RamRead { data: RamReadData },
+    /// RamRead command
+    RamRead {
+        /// The data read
+        data: RamReadData,
+    },
+    /// IJog command
     IJog,
+    /// Sjog command
     SJog,
+    /// Stat command
     Stat,
+    /// Rollback command
     Rollback,
+    /// Reboot command
     Reboot,
 }
 
@@ -123,6 +171,8 @@ impl From<Command> for u8 {
     }
 }
 
+/// The values of the status error register
+#[allow(missing_docs)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum StatusError {
     ExceedInputVoltageLimit,
@@ -135,6 +185,8 @@ pub enum StatusError {
     NoError,
 }
 
+/// The values of the status detail error register
+#[allow(missing_docs)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum StatusDetail {
     MovingFlag,
@@ -154,6 +206,8 @@ enum AssociatedData {
     Nothing,
 }
 
+/// This is a state machine that take in some bytes and outputs `[AckPacket]`.
+/// Please note that this structure will allocate roughly 1 kiB of stack.
 pub struct ACKReader {
     state: ReaderState,
     buffer: ArrayVec<[ACKPacket; TRAME_READER_INTERNAL_BUFFER_SIZE]>,
@@ -267,7 +321,7 @@ enum ReaderState {
 }
 
 impl ReaderState {
-    fn step(&mut self, byte: u8) -> Option<ACKPacket> {
+    fn step(&mut self, byte: u8) -> Option<RawACKPacket> {
         use addr::EEPReadData;
         use addr::RamReadData;
         use addr::ReadableEEPAddr;
@@ -281,7 +335,7 @@ impl ReaderState {
         use reader::StatusError::*;
         use try_from::TryFrom;
 
-        let mut result: Option<ACKPacket> = None;
+        let mut result: Option<RawACKPacket> = None;
         match *self {
             H1 => *self = H2,
             H2 => *self = Psize,
@@ -600,7 +654,7 @@ impl ReaderState {
                     _ => (),
                 };
                 if let Some(status_detail) = status_detail {
-                    result = self.add_to_buffer(
+                    result = self.make_packet(
                         size,
                         pid,
                         cmd,
@@ -617,7 +671,7 @@ impl ReaderState {
         result
     }
 
-    fn add_to_buffer(
+    fn make_packet(
         &mut self,
         size: u8,
         pid: u8,
@@ -627,9 +681,9 @@ impl ReaderState {
         payload: AssociatedData,
         status_error: StatusError,
         status_detail: StatusDetail,
-    ) -> Option<ACKPacket> {
+    ) -> Option<RawACKPacket> {
         let cmd = cmd.inject_payload(payload);
-        let packet = ACKPacket {
+        let packet = RawACKPacket {
             psize: size,
             pid,
             cmd,
@@ -669,7 +723,7 @@ impl ACKReader {
     pub fn parse(&mut self, buf: &[u8]) {
         for byte in buf {
             if let Some(trame) = self.state.step(*byte) {
-                self.buffer.push(trame);
+                self.buffer.push(ACKPacket::from(trame));
             }
         }
     }
@@ -678,7 +732,9 @@ impl ACKReader {
 #[cfg(test)]
 mod test {
     use addr::*;
-    use reader::{ACKPacket, ACKReader, AssociatedData, Command, StatusDetail, StatusError};
+    use reader::{
+        ACKPacket, ACKReader, AssociatedData, Command, RawACKPacket, StatusDetail, StatusError,
+    };
 
     //#[test]
     fn test_eepread() {
@@ -701,11 +757,8 @@ mod test {
         assert_eq!(
             reader.pop_ack_packet().unwrap(),
             ACKPacket {
-                psize: 0x0F,
                 pid: 0xFD,
                 cmd: Command::EEPRead { data: data_eepread },
-                chk1: 0x14,
-                chk2: 0xEA,
                 error: StatusError::InvalidPacket,
                 detail: StatusDetail::GarbageDetected,
             }
@@ -733,11 +786,8 @@ mod test {
         assert_eq!(
             reader.pop_ack_packet().unwrap(),
             ACKPacket {
-                psize: 0x0C,
                 pid: 0xFD,
                 cmd: Command::RamRead { data: data_ramread },
-                chk1: 0xA0,
-                chk2: 0x5E,
                 error: StatusError::OverloadDetected,
                 detail: StatusDetail::MotorOnFlag,
             }
@@ -759,11 +809,8 @@ mod test {
         assert_eq!(
             reader.pop_ack_packet().unwrap(),
             ACKPacket {
-                psize: 0x09,
                 pid: 0xFD,
                 cmd: Command::SJog,
-                chk1: /*0xF2*/ 0xB2,
-                chk2: /*0x0C*/ 0x4C,
                 error: StatusError::InvalidPacket,
                 detail: StatusDetail::UnknownCommand,
             }

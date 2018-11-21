@@ -34,7 +34,7 @@ pub enum Rollback {
     SkipNone,
 }
 
-/// This represent the servomotor mode.
+/// This represent the servomotor control mode.
 /// The servomotor is either controlled in `Position` or `Speed`.
 #[derive(Debug)]
 pub enum JogMode {
