@@ -20,4 +20,6 @@ version = "0.4.7"
 docmatic = "0.1"
 
 [dependencies.try_from]
-version = "0.2.2"
+git = "https://github.com/gbip/try_from"
+branch = "no_std_support"
+features = ["no_std"]
