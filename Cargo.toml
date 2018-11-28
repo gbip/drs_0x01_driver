@@ -1,6 +1,6 @@
 [package]
 name = "drs-0x01"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Paul Florence <perso@florencepaul.com>"]
 description = "Easily communicate with Dongbu Robot servomotors Herkulex DRS 0101 and DRS 0201"
 license = "MIT OR Apache-2.0"
@@ -10,6 +10,7 @@ categories = ["embedded", "no-std", "hardware-support"]
 repository = "https://github.com/gbip/drs_0x01_driver"
 
 [dependencies]
+try_from = {version = "0.3.0", features = ["no_std"]}
 
 [dependencies.arrayvec]
 default-features = false
@@ -18,8 +19,3 @@ version = "0.4.7"
 
 [dev-dependencies]
 docmatic = "0.1"
-
-[dependencies.try_from]
-git = "https://github.com/gbip/try_from"
-branch = "no_std_support"
-features = ["no_std"]
