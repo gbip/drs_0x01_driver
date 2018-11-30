@@ -4,7 +4,7 @@
 
  # [Documentation](https://docs.rs/drs-0x01/0.1.6/drs_0x01/)
  
- This crate provides basic functionnality to communicate with Herkulex DRS (both 0101 and 0201)
+ This crate provides basic functionalities to communicate with Herkulex DRS (both 0101 and 0201)
  servomotors.
  It is heavily based on the documentation published by Dongbu Robot which is available
  [`here`](http://www.sgbotic.com/products/datasheets/robotics/herkulexeng.pdf).
@@ -21,7 +21,7 @@ use drs_0x01::Servo;
 
 fn main() {
     let servo = Servo::new(0x40);
-    let message = servo.set_speed(512);
+    let message = servo.set_speed(512, Rotation::Clockwise);
     // ... send the message
 }
 ```
