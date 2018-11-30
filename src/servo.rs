@@ -1,6 +1,6 @@
 use builder::{HerkulexMessage, MessageBuilder};
 
-use message::{JogColor, JogMode};
+use message::{JogColor, JogMode, Rotation};
 
 use addr::*;
 
@@ -47,7 +47,7 @@ impl Servo {
 
     /// Request the servo to go to a position.
     /// The value can be between 0 and 1023 but should be between 21 and 1002 if you don't want
-    /// the servomotor fo go in error mode.
+    /// the servomotor to go in error mode.
     pub fn set_position(self, position: u16) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .s_jog(
@@ -62,12 +62,13 @@ impl Servo {
 
     /// Request the servo to have a certain speed.
     /// The value should be between 0 and 1023.
-    pub fn set_speed(self, speed: u16) -> HerkulexMessage {
+    pub fn set_speed(self, speed: u16, rotation: Rotation) -> HerkulexMessage {
         MessageBuilder::new_with_id(self.id)
             .s_jog(
                 60,
                 JogMode::Continuous {
                     speed: min(speed, 1023),
+                    rotation
                 },
                 JogColor::Blue,
                 self.id,

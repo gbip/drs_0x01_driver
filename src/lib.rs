@@ -12,7 +12,7 @@
 //! use drs_0x01::*;
 //!
 //! let servo = Servo::new(0x40);
-//! let message = servo.set_speed(512);
+//! let message = servo.set_speed(512, Rotation::Clockwise);
 //! ```
 //!
 //! To reboot all the servomotors you can use this message :
@@ -53,5 +53,5 @@ pub mod reader;
 mod servo;
 
 pub use addr::{ReadableEEPAddr, ReadableRamAddr, WritableEEPAddr, WritableRamAddr};
-pub use message::{JogColor, JogMode};
+pub use message::{JogColor, JogMode, Rotation};
 pub use servo::Servo;

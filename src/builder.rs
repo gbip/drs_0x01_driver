@@ -549,12 +549,22 @@ mod test {
 
         let message = MessageBuilder::new()
             .id(0xFD)
-            .s_jog(60, JogMode::Continuous { speed: 320 }, JogColor::Blue, 0xFD)
+            .s_jog(60, JogMode::Continuous { speed: 320, rotation: Rotation::CounterClockwise }, JogColor::Blue, 0xFD)
             .build();
 
         assert_eq!(
             message.as_slice(),
             &[0xFF, 0xFF, 0x0C, 0xFD, 0x06, 124, 130, 0x3C, 0x40, 0x01, 0x0A, 0xFD,]
+        );
+
+        let message = MessageBuilder::new()
+            .id(0xFD)
+            .s_jog(60, JogMode::Continuous { speed: 320, rotation: Rotation::Clockwise }, JogColor::Blue, 0xFD)
+            .build();
+
+        assert_eq!(
+            message.as_slice(),
+            &[0xFF, 0xFF, 0x0C, 0xFD, 0x06, 0x3C, 0xC2, 0x3C, 0x40, 0x41, 0x0A, 0xFD,]
         )
     }
 
@@ -571,11 +581,20 @@ mod test {
 
         let message = MessageBuilder::new()
             .id(0xFD)
-            .i_jog(60, JogMode::Continuous { speed: 320 }, JogColor::Blue, 0xFD)
+            .i_jog(60, JogMode::Continuous { speed: 320, rotation: Rotation::CounterClockwise }, JogColor::Blue, 0xFD)
             .build();
         assert_eq!(
             message.as_slice(),
             &[0xFF, 0xFF, 0x0C, 0xFD, 0x05, 0x7E, 0x80, 0x40, 0x01, 0x0A, 0xFD, 0x3C,]
+        );
+
+        let message = MessageBuilder::new()
+            .id(0xFD)
+            .i_jog(60, JogMode::Continuous { speed: 320, rotation: Rotation::Clockwise }, JogColor::Blue, 0xFD)
+            .build();
+        assert_eq!(
+            message.as_slice(),
+            &[0xFF, 0xFF, 0x0C, 0xFD, 0x05, 0x3E, 0xC0, 0x40, 0x41, 0x0A, 0xFD, 0x3C,]
         )
     }
 
