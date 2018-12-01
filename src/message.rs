@@ -34,6 +34,15 @@ pub enum Rollback {
     SkipNone,
 }
 
+/// This represent the rotation sense of the servomotor while controlled in `Speed`.
+#[derive(Debug)]
+pub enum Rotation {
+    /// CounterClockwise rotation, which is the default rotation sense.
+    CounterClockwise,
+    /// Clockwise rotation, representing the inverted rotation.
+    Clockwise,
+}
+
 /// This represent the servomotor control mode.
 /// The servomotor is either controlled in `Position` or `Speed`.
 #[derive(Debug)]
@@ -52,6 +61,8 @@ pub enum JogMode {
         /// The desired PWM value.
         /// The value must be in the 0..1023 range
         speed: u16,
+        /// Inverts the rotation sense of the servo by modifying the 14th bit.
+        rotation: Rotation,
     },
 }
 
@@ -59,7 +70,8 @@ impl JogMode {
     pub(crate) fn associated_data(&self) -> u16 {
         match *self {
             JogMode::Normal { position } => position,
-            JogMode::Continuous { speed } => speed,
+            JogMode::Continuous { speed, rotation: Rotation::Clockwise } => 0x4000 | speed,
+            JogMode::Continuous { speed, rotation: Rotation::CounterClockwise } => speed,
         }
     }
 }
