@@ -1,17 +1,19 @@
 [![Latest version](https://img.shields.io/crates/v/drs-0x01.svg)](https://crates.io/crates/drs-0x01)
 [![Documentation](https://docs.rs/drs-0x01/badge.svg)](https://docs.rs/drs-0x01)
-[![dependency status](https://deps.rs/repo/github/gbip/drs_0x01_driver/status.svg)](https://deps.rs/repo/github/gbip/drs_0x01_driver)
-
- # [Documentation](https://docs.rs/drs-0x01/0.1.6/drs_0x01/)
+# [Documentation](https://docs.rs/drs-0x01/0.1.6/drs_0x01/)
  
  This crate provides basic functionalities to communicate with Herkulex DRS (both 0101 and 0201)
  servomotors.
  It is heavily based on the documentation published by Dongbu Robot which is available
  [`here`](http://www.sgbotic.com/products/datasheets/robotics/herkulexeng.pdf).
 
-# Examples
+## Crate maturity
 
-## Sending data
+This library has been used successfully to drive servomotors on robot designed to compete at Eurobot. So the emitting side of the library is tested and should be bug free. However, the receiving side of the library isn't as much tested.
+
+## Examples
+
+### Sending data
 The best way to use this library to send data to the servomotor is to use the Servo struct.
 For example, this how you can set a servomotor (id : 0x40) into continuous rotation.
 
@@ -70,7 +72,7 @@ fn main() {
  }
  ```
  
- ## Receiving Data
+ ### Receiving Data
  
  You can easily parse incoming bytes and transform them into [ACKPacket](https://docs.rs/drs-0x01/latest/drs_0x01/reader/struct.ACKPacket.html) 
  by using an [ACKReader](https://docs.rs/drs-0x01/latest/drs_0x01/reader/struct.ACKReader.html).
