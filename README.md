@@ -78,5 +78,22 @@ fn main() {
  
  You can easily parse incoming bytes and transform them into [ACKPacket](https://docs.rs/drs-0x01/latest/drs_0x01/reader/struct.ACKPacket.html) 
  by using an [ACKReader](https://docs.rs/drs-0x01/latest/drs_0x01/reader/struct.ACKReader.html).
- 
- See the `examples` folder for a code snippet.
+
+From [`examples/read_status.rs`](examples/read_status.rs) :
+
+```rust
+extern crate drs_0x01;
+use drs_0x01::builder::MessageBuilder;
+use drs_0x01::reader::ACKReader;
+fn main() {
+    let mut reader = ACKReader::new();
+
+    let _message = MessageBuilder::new_with_id(35).stat().build();
+    // Send the message ...
+    let received_message = [0u8];
+    reader.parse(&received_message);
+    if let Some(_packet) = reader.pop_ack_packet() {
+        // Handle the packet
+    }
+}
+```
