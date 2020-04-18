@@ -9,9 +9,11 @@
 
 ## Crate maturity
 
-This library has been used successfully to drive servomotors on robot designed to compete at Eurobot. So the emitting side of the library is tested and should be bug free. However, the receiving side of the library isn't as much tested.
+This library has been used successfully to drive servomotors on robot designed to compete at Eurobot. So the emitting side of the library is tested and should be bug free. However, the receiving side of the library isn't as much tested. To be tagged as `1.0` more efforts should be put into the test suite.
 
 ## Examples
+
+[Herkulex Manager](https://git.florencepaul.com/gbip/herkulex_manager) is a binary CLI to send commands to the servomotors. It can be used as an example on how to integrate the library inside a bigger application.
 
 ### Sending data
 The best way to use this library to send data to the servomotor is to use the Servo struct.
