@@ -9,6 +9,6 @@ fn main() {
     let received_message = [0u8];
     reader.parse(&received_message);
     if let Some(_packet) = reader.pop_ack_packet() {
-        // Handle the packer
+        // Handle the packet
     }
 }
